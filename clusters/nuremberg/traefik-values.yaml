@@ -1,25 +1,3 @@
 # Traefik values — Nuremberg (EU)
----
-providers:
-  kubernetesIngress:
-    enabled: true
-  kubernetesCRD:
-    enabled: true
-    allowCrossNamespace: true
-
-experimental:
-  plugins:
-    crowdsec-bouncer-traefik-plugin:
-      moduleName: "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
-      version: "v1.4.5"
-
-ports:
-  web:
-    hostPort: 80
-  websecure:
-    hostPort: 443
-
-service:
-  type: ClusterIP
-
-hostNetwork: true
+# All defaults in ../../clusters/base-values.yaml
+# No region-specific overrides required.

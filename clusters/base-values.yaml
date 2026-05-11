@@ -1,0 +1,83 @@
+# Base Helm Values — shared defaults across all 3 clusters (ashburn, hillsboro, nuremberg)
+# Loaded first; per-cluster values files override these settings.
+# Reference from Application manifests as:
+#   helm:
+#     valueFiles:
+#       - ../../clusters/base-values.yaml
+#       - ../../clusters/<region>/<component>-values.yaml
+
+---
+# Traefik — identical across all clusters
+traefik:
+  providers:
+    kubernetesIngress:
+      enabled: true
+    kubernetesCRD:
+      enabled: true
+      allowCrossNamespace: true
+  experimental:
+    plugins:
+      crowdsec-bouncer-traefik-plugin:
+        moduleName: "github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin"
+        version: "v1.4.5"
+  ports:
+    web:
+      hostPort: 80
+    websecure:
+      hostPort: 443
+  service:
+    type: ClusterIP
+  hostNetwork: true
+
+---
+# Istio — shared meshConfig and pilot across all clusters
+istio:
+  meshConfig:
+    accessLogFile: /dev/stdout
+    defaultConfig:
+      terminationDrainDuration: 45s
+  pilot:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+
+---
+# CrowdSec — identical COLLECTIONS across all clusters
+crowdsec:
+  lapi:
+    env:
+      - name: COLLECTIONS
+        value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"
+
+---
+# ExternalDNS — shared provider config across all clusters
+externaldns:
+  provider: rfc2136
+  rfc2136:
+    port: 53
+    zone: "9s.pics"
+    tsigKeyname: "externaldns"
+    tsigSecretAlg: "hmac-sha256"
+    tsigSecret: "<from-secret>"
+    loadBalancingStrategy: "round-robin"
+
+---
+# k8gb — shared settings across all clusters
+k8gb:
+  reconcileRequeueSeconds: 10
+  dnsZones:
+    - parentZone: "9s.pics"
+      loadBalancedZone: "lb.9s.pics"
+  edgeDNSServers:
+    - "1.1.1.1"
+  splitBrainCheck: true
+  splitBrainTXTTTL: 30
+  coredns:
+    isClusterService: false
+    serviceType: "LoadBalancer"
+  extdns:
+    enabled: true
+    interval: 20s
+    domainFilters:
+      - "9s.pics"

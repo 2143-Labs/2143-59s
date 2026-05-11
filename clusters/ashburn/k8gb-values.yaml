@@ -1,26 +1,9 @@
 # k8gb values — Ashburn (US East)
-# Domain: 9s.pics
+# Shared defaults (dnsZones, edgeDNS, splitBrain, extdns) in ../../clusters/base-values.yaml
 ---
 k8gb:
   clusterGeoTag: "us-ashburn"
   extGslbClustersGeoTags: "us-hillsboro,eu-nuremberg"
-  reconcileRequeueSeconds: 10
-  dnsZones:
-    - parentZone: "9s.pics"
-      loadBalancedZone: "lb.9s.pics"
-  edgeDNSServers:
-    - "1.1.1.1"
-  splitBrainCheck: true
-  splitBrainTXTTTL: 30
-
-coredns:
-  isClusterService: false
-  serviceType: "LoadBalancer"
-
-extdns:
-  enabled: true
-  interval: 20s
-  domainFilters:
-    - "9s.pics"
-  txtPrefix: "k8gb-ash-"
-  txtOwnerId: "k8gb-ash"
+  extdns:
+    txtPrefix: "k8gb-ash-"
+    txtOwnerId: "k8gb-ash"

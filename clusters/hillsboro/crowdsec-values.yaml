@@ -1,7 +1,3 @@
 # CrowdSec values — Hillsboro (US West)
----
-crowdsec:
-  lapi:
-    env:
-      - name: COLLECTIONS
-        value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"
+# Shared defaults (COLLECTIONS) in ../../clusters/base-values.yaml
+# No region-specific overrides required.

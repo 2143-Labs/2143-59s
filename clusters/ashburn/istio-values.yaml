@@ -1,16 +1,6 @@
 # Istio values — Ashburn (US East)
+# Shared defaults (meshConfig, pilot) in ../../clusters/base-values.yaml
 ---
-meshConfig:
-  accessLogFile: /dev/stdout
-  defaultConfig:
-    terminationDrainDuration: 45s
-
-pilot:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 512Mi
-
 global:
   meshID: "mesh-ashburn"
   network: "ashburn-network"

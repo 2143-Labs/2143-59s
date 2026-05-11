@@ -1,12 +1,5 @@
 # ExternalDNS values — Nuremberg (EU)
-# Domain: 9s.pics
+# Shared defaults (provider, port, zone, tsig) in ../../clusters/base-values.yaml
 ---
-provider: rfc2136
 rfc2136:
   host: "k3s-nuremberg.9s.pics"
-  port: 53
-  zone: "9s.pics"
-  tsigKeyname: "externaldns"
-  tsigSecretAlg: "hmac-sha256"
-  tsigSecret: "<from-secret>"
-  loadBalancingStrategy: "round-robin"
