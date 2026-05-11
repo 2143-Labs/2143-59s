@@ -1,0 +1,46 @@
+# john2143-com — image host (stateless, S3-backed via SeaweedFS)
+# Wave 6
+# Domain: john2143.9s.pics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: john2143-com
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: john2143-com
+  template:
+    metadata:
+      labels:
+        app: john2143-com
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/john2143/john2143-com:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: S3_ENDPOINT
+              value: "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+            - name: S3_BUCKET
+              value: "john2143-com"
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3-creds
+                  key: accessKey
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3-creds
+                  key: secretKey
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 500m

@@ -1,0 +1,8 @@
+# Temporal Workers — Helm values
+# Wave 5
+# Deployed to all 3 clusters. Workers connect to Temporal Server on Ashburn.
+---
+worker:
+  replicaCount: 2
+  config:
+    temporalHost: "temporal-frontend.default.svc.cluster.local:7233"

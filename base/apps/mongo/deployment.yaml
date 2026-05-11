@@ -1,0 +1,48 @@
+# mongo — standalone MongoDB for image host (separate from main MongoDB)
+# Wave 6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-imagehost
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-imagehost
+  template:
+    metadata:
+      labels:
+        app: mongo-imagehost
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7
+          args:
+            - "--auth"
+            - "--enableEncryption"
+            - "--encryptionKeyFile=/etc/mongo/encryption.key"
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: admin
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongo-creds
+                  key: password
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongodata
+            - mountPath: /etc/mongo
+              name: mongo-encryption-key
+              readOnly: true
+      volumes:
+        - name: mongodata
+          persistentVolumeClaim:
+            claimName: mongo-pvc
+        - name: mongo-encryption-key
+          secret:
+            secretName: mongo-encryption-key

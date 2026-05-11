@@ -1,0 +1,13 @@
+# CrowdSec values — Ashburn (US East)
+---
+# CrowdSec LAPI is deployed as a Deployment (base/crowdsec/lapi-deployment.yaml)
+# This file provides per-cluster overrides.
+#
+# Ashburn is the primary LAPI. Hillsboro and Nuremberg agents connect here
+# if cross-cluster networking is available, or run local LAPI instances.
+crowdsec:
+  lapi:
+    # Primary LAPI for the cluster
+    env:
+      - name: COLLECTIONS
+        value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"

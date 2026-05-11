@@ -1,0 +1,18 @@
+# Istio values — Nuremberg (EU)
+---
+meshConfig:
+  accessLogFile: /dev/stdout
+  defaultConfig:
+    terminationDrainDuration: 45s
+
+pilot:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+
+global:
+  meshID: "mesh-nuremberg"
+  network: "nuremberg-network"
+  multiCluster:
+    clusterName: "nuremberg"

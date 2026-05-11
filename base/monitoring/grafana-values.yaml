@@ -1,0 +1,18 @@
+# Grafana — Helm values
+# Wave 7
+# Domain: grafana.9s.pics
+---
+grafana:
+  ingress:
+    enabled: true
+    hosts:
+      - grafana.9s.pics
+    tls:
+      - secretName: wildcard-9s-pics-tls
+        hosts:
+          - grafana.9s.pics
+  persistence:
+    enabled: true
+    storageClassName: longhorn
+    size: 5Gi
+  # PLACEHOLDER: admin password from NixOS host agenix

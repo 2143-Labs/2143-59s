@@ -1,0 +1,41 @@
+# CrowdSec Agent DaemonSet — reads Traefik logs, sends to LAPI
+# Wave 3
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: crowdsec-agent
+  namespace: crowdsec
+spec:
+  selector:
+    matchLabels:
+      app: crowdsec-agent
+  template:
+    metadata:
+      labels:
+        app: crowdsec-agent
+    spec:
+      containers:
+        - name: crowdsec-agent
+          image: crowdsecurity/crowdsec:latest
+          env:
+            - name: LAPI_URL
+              value: "http://crowdsec-service.crowdsec.svc.cluster.local:8080"
+            - name: BOUNCER_KEY_crowdsec-agent
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-bouncer-key
+                  key: key
+          volumeMounts:
+            - name: traefik-logs
+              mountPath: /var/log/traefik
+              readOnly: true
+            - name: crowdsec-db
+              mountPath: /var/lib/crowdsec/data
+      volumes:
+        - name: traefik-logs
+          hostPath:
+            path: /var/log/traefik
+            type: DirectoryOrCreate
+        - name: crowdsec-db
+          emptyDir: {}

@@ -1,0 +1,16 @@
+# Traefik Middleware — CrowdSec Bouncer Plugin
+# Wave 1 (CrowdSec LAPI must be running first — wave 3; middleware references it by name,
+# but Traefik wave 1 boots before CrowdSec wave 3. The plugin will retry connection.)
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: crowdsec-protected
+  namespace: traefik
+spec:
+  plugin:
+    crowdsec-bouncer-traefik-plugin:
+      enabled: true
+      crowdsecMode: stream
+      crowdsecLapiHost: "crowdsec-service.crowdsec.svc.cluster.local:8080"
+      crowdsecAppsecEnabled: true

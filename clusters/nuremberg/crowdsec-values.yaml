@@ -1,0 +1,7 @@
+# CrowdSec values — Nuremberg (EU)
+---
+crowdsec:
+  lapi:
+    env:
+      - name: COLLECTIONS
+        value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"

@@ -1,0 +1,7 @@
+# CrowdSec values — Hillsboro (US West)
+---
+crowdsec:
+  lapi:
+    env:
+      - name: COLLECTIONS
+        value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"

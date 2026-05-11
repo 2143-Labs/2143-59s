@@ -1,0 +1,15 @@
+# CrowdSec LAPI Service
+# Wave 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crowdsec-service
+  namespace: crowdsec
+spec:
+  selector:
+    app: crowdsec-lapi
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: lapi

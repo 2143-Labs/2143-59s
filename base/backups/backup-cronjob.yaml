@@ -1,0 +1,49 @@
+# Object Store Backup CronJob — daily rclone sync → B2 + home RustFS
+# Wave 8 (backups deploy last)
+# Runs 3 AM UTC daily. Syncs SeaweedFS data to both backup targets.
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: object-store-backup
+  namespace: backup
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: rclone
+              image: rclone/rclone:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  curl -fsS "${HC_URL}/start" > /dev/null || true
+                  rclone sync /data b2-crypt: --fast-list --transfers 32
+                  B2_RC=$?
+                  rclone sync /data rustfs-crypt: --fast-list --transfers 16
+                  RUSTFS_RC=$?
+                  if [ $B2_RC -ne 0 ] || [ $RUSTFS_RC -ne 0 ]; then RC=1; else RC=0; fi
+                  curl -fsS "${HC_URL}/${RC}" > /dev/null || true
+                  exit $RC
+              envFrom:
+                - secretRef:
+                    name: healthchecks-url
+              volumeMounts:
+                - name: rclone-config
+                  mountPath: /etc/rclone
+                  readOnly: true
+                - name: data
+                  mountPath: /data
+          volumes:
+            - name: rclone-config
+              secret:
+                secretName: rclone-config
+            - name: data
+              persistentVolumeClaim:
+                claimName: seaweedfs-data
+          restartPolicy: OnFailure

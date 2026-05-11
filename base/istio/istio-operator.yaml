@@ -1,0 +1,24 @@
+# Istio Operator — installs Istio control plane
+# Wave 3
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: istio-control-plane
+  namespace: istio-system
+spec:
+  profile: default
+  meshConfig:
+    accessLogFile: /dev/stdout
+    defaultConfig:
+      terminationDrainDuration: 45s
+  components:
+    pilot:
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: false  # Traefik handles ingress

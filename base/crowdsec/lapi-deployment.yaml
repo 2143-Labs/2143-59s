@@ -1,0 +1,50 @@
+# CrowdSec Local API (LAPI) — central decision engine
+# Wave 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crowdsec-lapi
+  namespace: crowdsec
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crowdsec-lapi
+  template:
+    metadata:
+      labels:
+        app: crowdsec-lapi
+    spec:
+      containers:
+        - name: crowdsec-lapi
+          image: crowdsecurity/crowdsec:latest
+          env:
+            - name: COLLECTIONS
+              value: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve"
+            - name: BOUNCER_KEY_crowdsec-bouncer
+              valueFrom:
+                secretKeyRef:
+                  name: crowdsec-bouncer-key
+                  key: key
+          ports:
+            - containerPort: 8080
+              name: lapi
+          volumeMounts:
+            - name: crowdsec-db
+              mountPath: /var/lib/crowdsec/data
+      volumes:
+        - name: crowdsec-db
+          emptyDir: {}
+---
+# PLACEHOLDER: crowdsec-bouncer-key Secret
+# Created by NixOS host agenix at boot.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crowdsec-bouncer-key
+  namespace: crowdsec
+type: Opaque
+data:
+  # PLACEHOLDER: base64-encoded bouncer API key
+  key: UkVQTEFDRV9XSVRIX1JFQUxfQk9VTkNFUl9LRVk=

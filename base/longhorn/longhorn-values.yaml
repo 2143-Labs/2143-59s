@@ -1,0 +1,23 @@
+# Longhorn — distributed block storage for PVCs
+# Wave 1
+# Helm values for Longhorn deployment
+---
+defaultSettings:
+  backupTarget: "s3://longhorn-backups@us-east-1/"
+  backupTargetCredentialSecret: b2-credentials
+  createDefaultDiskLabeledNodes: true
+  defaultDataPath: /var/lib/longhorn
+  replicaAutoBalance: best-effort
+  storageOverProvisioningPercentage: 100
+  defaultReplicaCount: 2
+
+persistence:
+  defaultClass: true
+  defaultFsType: ext4
+
+longhornUI:
+  replicas: 1
+
+# PLACEHOLDER: b2-credentials Secret for Longhorn S3 backups
+# Created by NixOS host agenix at boot.
+# Contains: S3_ACCESS_KEY, S3_SECRET_KEY (Backblaze B2 Application Key)

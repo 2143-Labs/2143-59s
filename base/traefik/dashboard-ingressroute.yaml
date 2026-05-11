@@ -1,0 +1,22 @@
+# Traefik Dashboard IngressRoute
+# Wave 1
+# Domain: 9s.pics
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik.9s.pics`)
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService
+      middlewares:
+        - name: crowdsec-protected
+  tls:
+    secretName: wildcard-9s-pics-tls

@@ -1,0 +1,27 @@
+# Prometheus — kube-prometheus-stack Helm values
+# Wave 7
+---
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+grafana:
+  enabled: true
+  adminPassword: PLACEHOLDER  # configured via NixOS host agenix
+alertmanager:
+  enabled: false  # Healthchecks.io handles alerting
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true

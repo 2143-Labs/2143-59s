@@ -1,0 +1,31 @@
+# openfront-pro — frontend for OpenFront
+# Wave 6
+# Domain: openfront.9s.pics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openfront-pro
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: openfront-pro
+  template:
+    metadata:
+      labels:
+        app: openfront-pro
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/john2143/openfront-pro:latest
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+              cpu: 500m

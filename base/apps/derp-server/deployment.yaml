@@ -1,0 +1,58 @@
+# derp-server — Tailscale DERP relay (UDP, raw IP, hostNetwork)
+# Wave 6
+# Runs on raw IP. Uses hostPort for UDP. No ingress/TLS.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: derp-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: derp-server
+  template:
+    metadata:
+      labels:
+        app: derp-server
+    spec:
+      hostNetwork: true
+      containers:
+        - name: derp
+          image: ghcr.io/john2143/derp-server:latest
+          ports:
+            - containerPort: 3478
+              hostPort: 3478
+              protocol: UDP
+            - containerPort: 50482
+              hostPort: 50482
+          env:
+            - name: DERP_ADDR
+              value: ":3478"
+            - name: DERP_STUN_PORT
+              value: "3478"
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 50m
+            limits:
+              memory: 64Mi
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: derp-server
+  namespace: default
+spec:
+  selector:
+    app: derp-server
+  ports:
+    - name: derp
+      port: 3478
+      targetPort: 3478
+      protocol: UDP
+    - name: stun
+      port: 50482
+      targetPort: 50482

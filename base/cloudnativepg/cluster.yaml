@@ -1,0 +1,44 @@
+# CloudNativePG Cluster — PostgreSQL for Temporal
+# Wave 5
+# Active primary on Ashburn, streaming replicas on Hillsboro and Nuremberg
+# Per-cluster replica count set in per-cluster overrides
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: temporal-postgres
+  namespace: default
+spec:
+  instances: 1
+  storage:
+    size: 10Gi
+    storageClass: longhorn
+  wal:
+    size: 2Gi
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://temporal-backups/"
+      s3Credentials:
+        accessKeyId:
+          name: b2-credentials
+          key: S3_ACCESS_KEY
+        secretAccessKey:
+          name: b2-credentials
+          key: S3_SECRET_KEY
+      wal:
+        compression: gzip
+        maxParallel: 2
+    retentionPolicy: "30d"
+---
+# PLACEHOLDER: b2-credentials Secret
+# Created by NixOS host agenix at boot.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: b2-credentials
+  namespace: default
+type: Opaque
+data:
+  # PLACEHOLDER: Backblaze B2 Application Key
+  S3_ACCESS_KEY: UkVQTEFDRV9XSVRIX1JFQUxfQjJfQUNDRVNTX0tFWQ==
+  S3_SECRET_KEY: UkVQTEFDRV9XSVRIX1JFQUxfQjJfU0VDUkVUX0tFWQ==

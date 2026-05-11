@@ -1,0 +1,14 @@
+# john2143-com Service
+# Wave 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: john2143-com
+  namespace: default
+spec:
+  selector:
+    app: john2143-com
+  ports:
+    - port: 80
+      targetPort: 3000

@@ -1,0 +1,13 @@
+# SeaweedFS S3 Buckets — created after SeaweedFS is running
+# Wave 4 (after HelmRelease)
+---
+# Bucket: john2143-com (image host)
+# Access via s3.9s.pics or seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+#
+# NOTE: Buckets are created via the SeaweedFS S3 API after deployment.
+# This file documents expected buckets. Use `weed shell` or S3 API to create.
+#
+# Expected buckets:
+#   - john2143-com  (public-read for images, rest private)
+#   - temporal-backups
+#   - mongodumps

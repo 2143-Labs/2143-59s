@@ -1,0 +1,29 @@
+# openfront-pro-simulation-api Ingress
+# Wave 6
+# Domain: simulation-api.9s.pics
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openfront-pro-simulation-api
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-crowdsec-protected@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - simulation-api.9s.pics
+      secretName: simulation-api-9s-pics-tls
+  rules:
+    - host: simulation-api.9s.pics
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openfront-pro-simulation-api
+                port:
+                  number: 80

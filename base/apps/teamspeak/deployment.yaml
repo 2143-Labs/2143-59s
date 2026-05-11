@@ -1,0 +1,62 @@
+# teamspeak — TeamSpeak 3 server (raw IP, hostNetwork, active-passive)
+# Wave 6
+# Active on one cluster, passive (replicas: 0) on others.
+# Uses hostNetwork for UDP voice traffic. No ingress/TLS.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teamspeak
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: teamspeak
+  template:
+    metadata:
+      labels:
+        app: teamspeak
+    spec:
+      hostNetwork: true
+      containers:
+        - name: teamspeak
+          image: teamspeak:latest
+          ports:
+            - containerPort: 9987
+              hostPort: 9987
+              protocol: UDP
+            - containerPort: 10011
+              hostPort: 10011
+            - containerPort: 30033
+              hostPort: 30033
+          env:
+            - name: TS3SERVER_LICENSE
+              value: accept
+          volumeMounts:
+            - mountPath: /var/ts3server
+              name: teamspeak-data
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+      volumes:
+        - name: teamspeak-data
+          persistentVolumeClaim:
+            claimName: teamspeak-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: teamspeak-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: longhorn

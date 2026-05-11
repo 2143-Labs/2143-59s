@@ -1,0 +1,16 @@
+# Secrets — never commit
+*.age
+*.env
+*.key
+*.pem
+credentials.yaml
+secrets.yaml
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~

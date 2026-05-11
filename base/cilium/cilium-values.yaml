@@ -1,0 +1,22 @@
+# Cilium CNI — Helm values
+# Wave 0
+# Cilium is installed by k3s during NixOS provisioning. These values provide
+# runtime configuration updates such as Cluster Mesh and eBPF settings.
+---
+cilium:
+  cluster:
+    name: default  # overridden per-cluster
+    id: 1          # overridden per-cluster
+  kubeProxyReplacement: strict
+  bandwidthManager:
+    enabled: true
+  hubble:
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  ipam:
+    mode: kubernetes
+  routingMode: native
+  ipv4NativeRoutingCIDR: 10.0.0.0/8
+  enableIPv4Masquerade: true

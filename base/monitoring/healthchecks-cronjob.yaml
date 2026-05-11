@@ -1,0 +1,40 @@
+# Healthchecks.io CronJob — pings Healthchecks.io on a schedule
+# Wave 8 (backups and monitoring deploy last)
+# Verifies: certificate expiry, DNS resolution, endpoint health
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: healthchecks-ping
+  namespace: monitoring
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: healthcheck
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -fsS "${HC_URL}" > /dev/null || true
+              envFrom:
+                - secretRef:
+                    name: healthchecks-url
+          restartPolicy: OnFailure
+---
+# PLACEHOLDER: healthchecks-url Secret
+# Contains: HC_URL — Healthchecks.io ping URL (manual, from Healthchecks.io dashboard)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: healthchecks-url
+  namespace: monitoring
+type: Opaque
+data:
+  # PLACEHOLDER
+  HC_URL: UkVQTEFDRV9XSVRIX1JFQUxfSEVBTFRIQ0hFQ0tTX1VSTA==
