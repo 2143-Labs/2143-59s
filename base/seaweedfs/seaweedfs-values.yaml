@@ -1,0 +1,23 @@
+# SeaweedFS — Helm values for ArgoCD multi-source Application
+# Wave 4
+# 3-way replication on local SSD (10GB per node)
+# LUKS2 + encryptVolumeData + per-file AES-256-GCM
+---
+master:
+  defaultReplication: "001"  # 3-way replication (one copy per location)
+volume:
+  dataDirs:
+    - name: data
+      path: /data
+      size: "10Gi"
+  encryptVolumeData: true
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+filer:
+  enabled: true
+  encryptVolumeData: true
+s3:
+  enabled: true
+  port: 8333

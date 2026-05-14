@@ -1,6 +1,5 @@
 # SeaweedFS S3 Buckets — created after SeaweedFS is running
-# Wave 4 (after HelmRelease)
----
+# Wave 4 (after SeaweedFS HelmRelease deploys)
 # Bucket: john2143-com (image host)
 # Access via s3.9s.pics or seaweedfs-s3.seaweedfs.svc.cluster.local:8333
 #

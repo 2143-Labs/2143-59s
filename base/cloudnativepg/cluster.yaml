@@ -29,16 +29,16 @@ spec:
         compression: gzip
         maxParallel: 2
     retentionPolicy: "30d"
----
-# PLACEHOLDER: b2-credentials Secret
-# Created by NixOS host agenix at boot.
+
+# PLACEHOLDER: b2-credentials Secret — shape documentation only
+# Secret data is injected by the secret-injector Job (wave -2).
+# Contains: S3_ACCESS_KEY, S3_SECRET_KEY (Backblaze B2 Application Key)
+# Do NOT add `data:` here — ArgoCD selfHeal would overwrite injected values.
 apiVersion: v1
 kind: Secret
 metadata:
   name: b2-credentials
   namespace: default
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
 type: Opaque
-data:
-  # PLACEHOLDER: Backblaze B2 Application Key
-  S3_ACCESS_KEY: UkVQTEFDRV9XSVRIX1JFQUxfQjJfQUNDRVNTX0tFWQ==
-  S3_SECRET_KEY: UkVQTEFDRV9XSVRIX1JFQUxfQjJfU0VDUkVUX0tFWQ==

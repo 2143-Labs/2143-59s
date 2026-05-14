@@ -42,7 +42,7 @@ spec:
       volumes:
         - name: mongodata
           persistentVolumeClaim:
-            claimName: mongo-pvc
+            claimName: mongo-imagehost-pvc
         - name: mongo-encryption-key
           secret:
             secretName: mongo-encryption-key

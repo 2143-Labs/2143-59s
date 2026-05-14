@@ -1,8 +1,19 @@
-# Temporal Workers — Helm values
+# Temporal Workers — documented Helm values (ConfigMap, not a Helm deployment)
 # Wave 5
 # Deployed to all 3 clusters. Workers connect to Temporal Server on Ashburn.
+# For live Helm management, convert the temporal Application to a multi-source
+# Helm app pointing at https://go.temporal.io/helm-charts (chart: temporal).
 ---
-worker:
-  replicaCount: 2
-  config:
-    temporalHost: "temporal-frontend.default.svc.cluster.local:7233"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-worker-helm-values
+  namespace: default
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+data:
+  values.yaml: |
+    worker:
+      replicaCount: 2
+      config:
+        temporalHost: "temporal-frontend.default.svc.cluster.local:7233"

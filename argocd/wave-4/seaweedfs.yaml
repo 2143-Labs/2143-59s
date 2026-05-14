@@ -1,3 +1,4 @@
+
 # Wave 4: SeaweedFS — object storage before apps that use S3
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -10,10 +11,16 @@ metadata:
     argocd.argoproj.io/manifest-generate-paths: .
 spec:
   project: default
-  source:
-    repoURL: https://github.com/2143-Labs/2143-59s
-    targetRevision: refs/heads/master
-    path: base/seaweedfs
+  sources:
+    - repoURL: https://seaweedfs.github.io/seaweedfs/helm
+      chart: seaweedfs
+      targetRevision: 4.0.*
+      helm:
+        valueFiles:
+          - $values/base/seaweedfs/seaweedfs-values.yaml
+    - repoURL: https://github.com/2143-Labs/2143-59s
+      targetRevision: refs/heads/master
+      ref: values
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:

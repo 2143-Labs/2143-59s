@@ -1,27 +1,39 @@
-# Prometheus — kube-prometheus-stack Helm values
+# Prometheus — documented Helm values (ConfigMap, not a Helm deployment)
 # Wave 7
+# For live Helm management, convert the monitoring Application to a multi-source
+# Helm app pointing at https://prometheus-community.github.io/helm-charts
+# (chart: kube-prometheus-stack).
 ---
-prometheus:
-  prometheusSpec:
-    retention: 7d
-    resources:
-      requests:
-        memory: 512Mi
-        cpu: 250m
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: longhorn
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 20Gi
-grafana:
-  enabled: true
-  adminPassword: PLACEHOLDER  # configured via NixOS host agenix
-alertmanager:
-  enabled: false  # Healthchecks.io handles alerting
-nodeExporter:
-  enabled: true
-kubeStateMetrics:
-  enabled: true
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-helm-values
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+data:
+  values.yaml: |
+    prometheus:
+      prometheusSpec:
+        retention: 7d
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 20Gi
+    grafana:
+      enabled: true
+      adminPassword: PLACEHOLDER  # configured via NixOS host agenix
+    alertmanager:
+      enabled: false  # Healthchecks.io handles alerting
+    nodeExporter:
+      enabled: true
+    kubeStateMetrics:
+      enabled: true

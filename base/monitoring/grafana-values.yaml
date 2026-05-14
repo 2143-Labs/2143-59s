@@ -1,18 +1,26 @@
-# Grafana — Helm values
+# Grafana — documented Helm values (ConfigMap, not a Helm deployment)
 # Wave 7
 # Domain: grafana.9s.pics
 ---
-grafana:
-  ingress:
-    enabled: true
-    hosts:
-      - grafana.9s.pics
-    tls:
-      - secretName: wildcard-9s-pics-tls
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-helm-values
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+data:
+  values.yaml: |
+    grafana:
+      ingress:
+        enabled: true
         hosts:
           - grafana.9s.pics
-  persistence:
-    enabled: true
-    storageClassName: longhorn
-    size: 5Gi
-  # PLACEHOLDER: admin password from NixOS host agenix
+        tls:
+          - secretName: wildcard-9s-pics-tls
+            hosts:
+              - grafana.9s.pics
+      persistence:
+        enabled: true
+        storageClassName: longhorn
+        size: 5Gi

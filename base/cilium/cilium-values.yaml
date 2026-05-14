@@ -1,22 +1,33 @@
-# Cilium CNI — Helm values
+# Cilium CNI — documented Helm values (ConfigMap, not a Helm deployment)
 # Wave 0
-# Cilium is installed by k3s during NixOS provisioning. These values provide
-# runtime configuration updates such as Cluster Mesh and eBPF settings.
+# Cilium itself is installed by k3s during NixOS provisioning.
+# This ConfigMap documents the intended Helm chart values for reference.
+# For live Helm management, convert the cilium Application to a multi-source
+# Helm app pointing at https://helm.cilium.io/ (chart: cilium).
 ---
-cilium:
-  cluster:
-    name: default  # overridden per-cluster
-    id: 1          # overridden per-cluster
-  kubeProxyReplacement: strict
-  bandwidthManager:
-    enabled: true
-  hubble:
-    relay:
-      enabled: true
-    ui:
-      enabled: true
-  ipam:
-    mode: kubernetes
-  routingMode: native
-  ipv4NativeRoutingCIDR: 10.0.0.0/8
-  enableIPv4Masquerade: true
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cilium-helm-values
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+data:
+  values.yaml: |
+    cilium:
+      cluster:
+        name: default  # overridden per-cluster
+        id: 1          # overridden per-cluster
+      kubeProxyReplacement: strict
+      bandwidthManager:
+        enabled: true
+      hubble:
+        relay:
+          enabled: true
+        ui:
+          enabled: true
+      ipam:
+        mode: kubernetes
+      routingMode: native
+      ipv4NativeRoutingCIDR: 10.0.0.0/8
+      enableIPv4Masquerade: true

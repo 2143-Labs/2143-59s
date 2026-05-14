@@ -1,53 +1,61 @@
-# Temporal Server — Helm values
+# Temporal Server — documented Helm values (ConfigMap, not a Helm deployment)
 # Wave 5
-# Active on Ashburn, MCR replication to Hillsboro and Nuremberg
+# Active on Ashburn, MCR replication to Hillsboro and Nuremberg.
+# For live Helm management, convert the temporal Application to a multi-source
+# Helm app pointing at https://go.temporal.io/helm-charts (chart: temporal).
 ---
-server:
-  replicaCount: 1
-  config:
-    persistence:
-      default:
-        driver: sql
-        sql:
-          driver: postgres12
-          host: temporal-postgres-rw.default.svc.cluster.local
-          port: 5432
-          database: temporal
-          user: temporal
-          password:
-            existingSecret: temporal-postgres-password
-            key: password
-      visibility:
-        driver: sql
-        sql:
-          driver: postgres12
-          host: temporal-postgres-rw.default.svc.cluster.local
-          port: 5432
-          database: temporal_visibility
-          user: temporal
-          password:
-            existingSecret: temporal-postgres-password
-            key: password
-    services:
-      frontend:
-        membershipPort: 6933
-      history:
-        membershipPort: 6934
-      matching:
-        membershipPort: 6935
-      worker:
-        membershipPort: 6939
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-server-helm-values
+  namespace: default
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+data:
+  values.yaml: |
+    server:
+      replicaCount: 1
+      config:
+        persistence:
+          default:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: temporal-postgres-rw.default.svc.cluster.local
+              port: 5432
+              database: temporal
+              user: temporal
+              password:
+                existingSecret: temporal-postgres-password
+                key: password
+          visibility:
+            driver: sql
+            sql:
+              driver: postgres12
+              host: temporal-postgres-rw.default.svc.cluster.local
+              port: 5432
+              database: temporal_visibility
+              user: temporal
+              password:
+                existingSecret: temporal-postgres-password
+                key: password
+        services:
+          frontend:
+            membershipPort: 6933
+          history:
+            membershipPort: 6934
+          matching:
+            membershipPort: 6935
+          worker:
+            membershipPort: 6939
 
-cassandra:
-  enabled: false
-mysql:
-  enabled: false
-elasticsearch:
-  enabled: false
-prometheus:
-  enabled: true
-grafana:
-  enabled: false
-
-# PLACEHOLDER: temporal-postgres-password Secret
-# Created by NixOS host agenix at boot.
+    cassandra:
+      enabled: false
+    mysql:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    prometheus:
+      enabled: true
+    grafana:
+      enabled: false

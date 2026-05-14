@@ -1,40 +1,12 @@
-# SeaweedFS HelmRelease — geo-distributed encrypted object storage
-# Wave 4
-# 3-way replication on local SSD (10GB per node)
-# LUKS2 + encryptVolumeData + per-file AES-256-GCM
----
-apiVersion: helm.toolkit.fluxcd.io/v2beta1
-kind: HelmRelease
-metadata:
-  name: seaweedfs
-  namespace: seaweedfs
-spec:
-  chart:
-    spec:
-      chart: seaweedfs
-      sourceRef:
-        kind: HelmRepository
-        name: seaweedfs
-        namespace: seaweedfs
-  values:
-    master:
-      defaultReplication: "001"  # 3-way replication (one copy per location)
-    volume:
-      dataDirs:
-        - name: data
-          path: /data
-          size: "10Gi"
-      encryptVolumeData: true
-      resources:
-        requests:
-          memory: 512Mi
-          cpu: 250m
-    filer:
-      enabled: true
-      encryptVolumeData: true
-    s3:
-      enabled: true
-      port: 8333
-    # PLACEHOLDER: SeaweedFS master encryption key
-    # Created by NixOS host agenix at boot.
-    # secret: seaweedfs-master-key
+
+# SeaweedFS — deployed via ArgoCD multi-source Helm Application (see argocd/wave-4/seaweedfs.yaml)
+# Values are in seaweedfs-values.yaml
+# Chart: seaweedfs from https://seaweedfs.github.io/seaweedfs/helm
+
+# Buckets created post-deployment:
+#   - john2143-com  (public-read for images)
+#   - temporal-backups
+#   - mongodumps
+#
+# PLACEHOLDER: SeaweedFS master encryption key
+# Created by NixOS host agenix at boot (secret-injector Job: seaweedfs/seaweedfs-master-key)
