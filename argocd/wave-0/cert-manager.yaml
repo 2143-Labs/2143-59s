@@ -1,4 +1,5 @@
-# Wave 0: cert-manager — TLS certificates before ingress
+# Wave 0: cert-manager — TLS certificates (Helm operator + local CRDs)
+# Multi-source: deploys the cert-manager Helm chart, then our ClusterIssuer/Certificate CRs.
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -7,15 +8,26 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
-    argocd.argoproj.io/manifest-generate-paths: .
 spec:
   project: default
-  source:
-    repoURL: https://github.com/2143-Labs/2143-59s
-    targetRevision: refs/heads/master
-    path: base/cert-manager
+  sources:
+    # Source 1: cert-manager Helm chart (operator + CRDs)
+    - chart: cert-manager
+      repoURL: https://charts.jetstack.io
+      targetRevision: v1.17.1
+      helm:
+        valuesObject:
+          installCRDs: true
+          ingressShim:
+            defaultIssuerName: letsencrypt-prod
+            defaultIssuerKind: ClusterIssuer
+    # Source 2: Our ClusterIssuer and Certificate CRs
+    - repoURL: https://github.com/2143-Labs/2143-59s
+      targetRevision: refs/heads/master
+      path: base/cert-manager
   destination:
     server: https://kubernetes.default.svc
+    namespace: cert-manager
   syncPolicy:
     automated:
       prune: true
