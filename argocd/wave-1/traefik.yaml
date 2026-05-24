@@ -14,7 +14,7 @@ spec:
     # Source 1: Traefik Helm chart
     - chart: traefik
       repoURL: https://helm.traefik.io/traefik
-      targetRevision: 35.0.0
+      targetRevision: 34.0.0
       helm:
         valuesObject:
           providers:
