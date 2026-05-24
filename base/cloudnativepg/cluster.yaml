@@ -13,30 +13,16 @@ spec:
   instances: 1
   storage:
     size: 10Gi
-    storageClass: longhorn
   wal:
     size: 2Gi
 
-  # Databases and roles created automatically by the operator
-  managed:
-    databases:
-      - name: pdns
-        owner: pdns
-      - name: temporal
-        owner: temporal
-    roles:
-      - name: pdns
-        ensure: present
-        login: true
-        passwordSecret:
-          name: pdns-postgres-password
-          key: password
-      - name: temporal
-        ensure: present
-        login: true
-        passwordSecret:
-          name: temporal-postgres-password
-          key: password
+  # Bootstrap via initdb (CNPG 1.25 — spec.managed not yet available)
+  bootstrap:
+    initdb:
+      database: pdns
+      owner: pdns
+      postInitSQL:
+        - CREATE DATABASE temporal OWNER pdns
 
 # PLACEHOLDER: pdns-postgres-password Secret — shape documentation only.
 # Actual secret data is injected by k8s-secrets-bootstrap systemd oneshot.
