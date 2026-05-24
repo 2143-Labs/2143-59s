@@ -1,8 +1,0 @@
-# Cilium per-cluster override — Nuremberg (EU)
-# Shared defaults in ../../base/cilium/cilium-values.yaml
-# Ready for ApplicationSet migration: valueFiles ordering loads this last.
----
-cilium:
-  cluster:
-    name: nuremberg
-    id: 3

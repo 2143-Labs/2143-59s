@@ -1,7 +1,8 @@
-# CloudNativePG Cluster — PostgreSQL for Temporal
+# CloudNativePG Cluster — PostgreSQL for PowerDNS + Temporal
 # Wave 5
-# Active primary on Ashburn, streaming replicas on Hillsboro and Nuremberg
-# Per-cluster replica count set in per-cluster overrides
+# Each k3s cluster gets its own independent PostgreSQL instance (instances: 1).
+# Databases (pdns, temporal) and roles are created declaratively via spec.managed.
+# Backup is deferred — B2 credentials not yet configured.
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -15,29 +16,45 @@ spec:
     storageClass: longhorn
   wal:
     size: 2Gi
-  backup:
-    barmanObjectStore:
-      destinationPath: "s3://temporal-backups/"
-      s3Credentials:
-        accessKeyId:
-          name: b2-credentials
-          key: S3_ACCESS_KEY
-        secretAccessKey:
-          name: b2-credentials
-          key: S3_SECRET_KEY
-      wal:
-        compression: gzip
-        maxParallel: 2
-    retentionPolicy: "30d"
 
-# PLACEHOLDER: b2-credentials Secret — shape documentation only
-# Secret data is injected by the secret-injector Job (wave -2).
-# Contains: S3_ACCESS_KEY, S3_SECRET_KEY (Backblaze B2 Application Key)
+  # Databases and roles created automatically by the operator
+  managed:
+    databases:
+      - name: pdns
+        owner: pdns
+      - name: temporal
+        owner: temporal
+    roles:
+      - name: pdns
+        ensure: present
+        login: true
+        passwordSecret:
+          name: pdns-postgres-password
+          key: password
+      - name: temporal
+        ensure: present
+        login: true
+        passwordSecret:
+          name: temporal-postgres-password
+          key: password
+
+# PLACEHOLDER: pdns-postgres-password Secret — shape documentation only.
+# Actual secret data is injected by k8s-secrets-bootstrap systemd oneshot.
+# Contains: password (matches agenix hetzner/postgres-pdns-password.age)
 # Do NOT add `data:` here — ArgoCD selfHeal would overwrite injected values.
 apiVersion: v1
 kind: Secret
 metadata:
-  name: b2-credentials
+  name: pdns-postgres-password
+  namespace: default
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: temporal-postgres-password
   namespace: default
   annotations:
     argocd.argoproj.io/compare-options: IgnoreExtraneous
