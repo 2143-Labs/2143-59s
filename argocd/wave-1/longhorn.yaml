@@ -1,4 +1,4 @@
-# Wave 1: Longhorn — distributed block storage (Helm chart)
+# Wave 1: Longhorn — storage before stateful services
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -7,30 +7,15 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/manifest-generate-paths: .
 spec:
   project: default
   source:
-    chart: longhorn
-    repoURL: https://charts.longhorn.io
-    targetRevision: 1.8.1
-    helm:
-      valuesObject:
-        defaultSettings:
-          backupTarget: "s3://longhorn-backups@us-east-1/"
-          backupTargetCredentialSecret: b2-credentials
-          createDefaultDiskLabeledNodes: true
-          defaultDataPath: /var/lib/longhorn
-          replicaAutoBalance: best-effort
-          storageOverProvisioningPercentage: 100
-          defaultReplicaCount: 2
-        persistence:
-          defaultClass: true
-          defaultFsType: ext4
-        longhornUI:
-          replicas: 1
+    repoURL: https://github.com/2143-Labs/2143-59s
+    targetRevision: refs/heads/master
+    path: base/longhorn
   destination:
     server: https://kubernetes.default.svc
-    namespace: longhorn-system
   syncPolicy:
     automated:
       prune: true
