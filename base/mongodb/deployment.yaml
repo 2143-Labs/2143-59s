@@ -24,7 +24,7 @@ spec:
           args:
             - "--auth"
           env:
-          env:
+
             - name: MONGO_INITDB_ROOT_USERNAME
               value: admin
             - name: MONGO_INITDB_ROOT_PASSWORD
@@ -37,13 +37,8 @@ spec:
           volumeMounts:
             - mountPath: /data/db
               name: mongodata
-            - mountPath: /etc/mongo
-              name: mongo-encryption-key
-              readOnly: true
+
       volumes:
         - name: mongodata
           persistentVolumeClaim:
             claimName: mongo-pvc
-        - name: mongo-encryption-key
-          secret:
-            secretName: mongo-encryption-key
