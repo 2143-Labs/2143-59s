@@ -23,8 +23,7 @@ spec:
           image: mongo:7
           args:
             - "--auth"
-            - "--enableEncryption"
-            - "--encryptionKeyFile=/etc/mongo/encryption.key"
+          env:
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               value: admin
