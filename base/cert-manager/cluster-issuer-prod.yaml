@@ -28,4 +28,4 @@ spec:
             tsigAlgorithm: "HMACSHA256"
             tsigSecretSecretRef:
               name: rfc2136-credentials
-              key: rfc2136TsigSecret
+              key: tsig-key

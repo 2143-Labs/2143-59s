@@ -25,10 +25,8 @@ Reference: [hosting-research.md](https://github.com/John2143/dotfiles) · [hosti
 ```
 argocd/
 ├── root-app.yaml              # Root Application (applied imperatively at bootstrap)
-├── argocd-cm.yaml             # ArgoCD ConfigMap (health checks, resource tracking)
 ├── wave--2/namespaces.yaml    # Wave -2: Namespaces
-├── wave--1/secrets.yaml       # Wave -1: RFC2136 TSIG secret
-├── wave-0/                    # Wave 0: cert-manager, Cilium
+├── wave-0/                    # Wave 0: cert-manager (operator via systemd bootstrap)
 ├── wave-1/                    # Wave 1: Traefik, Longhorn
 ├── wave-2/                    # Wave 2: ExternalDNS, k8gb
 ├── wave-3/                    # Wave 3: CrowdSec, Istio
@@ -39,15 +37,14 @@ argocd/
 └── wave-8/                    # Wave 8: Backups
 base/
 ├── namespaces.yaml
-├── argocd-bootstrap/          # Bootstrap helpers
-│   └── secret-injector-job.yaml  # agenix → K8s Secret injection (PreSync hook)
+├── argocd-bootstrap/          # Bootstrap helpers (secret injection now via systemd)
 ├── k8gb/                      # Gslb CRDs
 ├── externaldns/               # RFC2136 secret + config
 ├── cert-manager/              # ClusterIssuers + certificates
 ├── traefik/                   # Dashboard + middlewares
 ├── crowdsec/                  # LAPI + agent + firewall bouncer
 ├── istio/                     # IstioOperator + mTLS + telemetry
-├── cilium/                    # CNI config
+├── cilium/                    # CNI config (ruled out — using k3s default Flannel)
 ├── longhorn/                  # Storage values
 ├── seaweedfs/                 # Object storage HelmRelease + buckets
 ├── mongodb/                   # Deployment + PVC + encryption + backup
@@ -69,9 +66,8 @@ Wave-grouped directories make deployment order visible from the filesystem.
 
 | Wave | Directory | Component |
 |------|-----------|-----------|
-| -2   | `wave--2/` | Namespaces, secret-injector hook |
-| -1   | `wave--1/` | Secrets (RFC2136, rclone, MongoDB encryption) |
-| 0    | `wave-0/`  | cert-manager, Cilium |
+| -2   | `wave--2/` | Namespaces |
+| 0    | `wave-0/`  | cert-manager (operator via bootstrap) |
 | 1    | `wave-1/`  | Traefik, Longhorn |
 | 2    | `wave-2/`  | ExternalDNS, k8gb |
 | 3    | `wave-3/`  | CrowdSec, Istio |
@@ -83,7 +79,7 @@ Wave-grouped directories make deployment order visible from the filesystem.
 
 ## Secrets
 
-All secrets are created by the NixOS host config (agenix decryption at boot) or via the `secret-injector` PreSync Job (`base/argocd-bootstrap/secret-injector-job.yaml`). The manifest files in this repo reference them by name only. Placeholder files document the expected shape.
+All secrets are created by the NixOS host config (`k8s-secrets-bootstrap` systemd oneshot, agenix decryption at boot). The manifest files in this repo reference them by name only. Placeholder files document the expected shape.
 
 No secret material (encrypted or otherwise) ever enters git history. This repo is safe to make public.
 

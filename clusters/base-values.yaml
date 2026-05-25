@@ -22,12 +22,12 @@ traefik:
         version: "v1.4.5"
   ports:
     web:
-      hostPort: 80
+      # hostPort: 80       # DISABLED — causes template errors in Traefik v34+
     websecure:
-      hostPort: 443
+      # hostPort: 443      # DISABLED — causes template errors in Traefik v34+
   service:
     type: ClusterIP
-  hostNetwork: true
+  # hostNetwork: true      # DISABLED — combine with hostPort, see above
 
 ---
 # Istio — shared meshConfig and pilot across all clusters
