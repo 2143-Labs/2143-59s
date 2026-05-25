@@ -79,7 +79,9 @@ Wave-grouped directories make deployment order visible from the filesystem.
 
 ## Secrets
 
-All secrets are created by the NixOS host config (`k8s-secrets-bootstrap` systemd oneshot, agenix decryption at boot). The manifest files in this repo reference them by name only. Placeholder files document the expected shape.
+All secrets are created by the NixOS host config (`k8s-secrets-bootstrap` systemd oneshot, agenix decryption at boot). The manifests in this repo reference secrets by name only.
+
+**No placeholder secrets in GitOps**: Empty secrets (even with `IgnoreExtraneous` annotation and no `data:` field) are an anti-pattern — ArgoCD selfHeal WILL reconcile them and overwrite runtime-injected values. The annotation prevents drift detection, not selfHeal overwrite. All secrets injected by `k8s-secrets-bootstrap` MUST NOT exist in this repo at all.
 
 No secret material (encrypted or otherwise) ever enters git history. This repo is safe to make public.
 

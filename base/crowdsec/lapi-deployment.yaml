@@ -36,15 +36,3 @@ spec:
       volumes:
         - name: crowdsec-db
           emptyDir: {}
----
-# PLACEHOLDER: crowdsec-bouncer-key Secret
-# Created by NixOS host agenix at boot.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: crowdsec-bouncer-key
-  namespace: crowdsec
-type: Opaque
-data:
-  # PLACEHOLDER: base64-encoded bouncer API key
-  key: UkVQTEFDRV9XSVRIX1JFQUxfQk9VTkNFUl9LRVk=

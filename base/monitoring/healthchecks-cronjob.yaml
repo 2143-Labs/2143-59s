@@ -26,16 +26,3 @@ spec:
                 - secretRef:
                     name: healthchecks-url
           restartPolicy: OnFailure
-
-# PLACEHOLDER: healthchecks-url Secret — shape documentation only
-# Secret data is injected by the secret-injector Job (wave -2).
-# Contains: HC_URL — Healthchecks.io ping URL (manual, from Healthchecks.io dashboard)
-# Do NOT add `data:` here — ArgoCD selfHeal would overwrite injected values.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: healthchecks-url
-  namespace: monitoring
-  annotations:
-    argocd.argoproj.io/compare-options: IgnoreExtraneous
-type: Opaque
