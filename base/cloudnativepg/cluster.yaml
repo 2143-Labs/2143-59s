@@ -24,24 +24,5 @@ spec:
       postInitSQL:
         - CREATE DATABASE temporal OWNER pdns
 
-# PLACEHOLDER: pdns-postgres-password Secret — shape documentation only.
-# Actual secret data is injected by k8s-secrets-bootstrap systemd oneshot.
-# Contains: password (matches agenix hetzner/postgres-pdns-password.age)
-# Do NOT add `data:` here — ArgoCD selfHeal would overwrite injected values.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: pdns-postgres-password
-  namespace: default
-  annotations:
-    argocd.argoproj.io/compare-options: IgnoreExtraneous
-type: Opaque
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: temporal-postgres-password
-  namespace: default
-  annotations:
-    argocd.argoproj.io/compare-options: IgnoreExtraneous
-type: Opaque
+# PLACEHOLDER: pdns-postgres-password and temporal-postgres-password Secrets
+# are injected by k8s-secrets-bootstrap systemd oneshot — NOT managed by ArgoCD.
