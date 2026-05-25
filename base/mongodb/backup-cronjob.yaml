@@ -20,6 +20,7 @@ spec:
                 - /bin/sh
                 - -c
                 - |
+                  apt-get update -qq && apt-get install -y -qq rclone curl unzip 2>/dev/null
                   mongodump --uri="mongodb://admin:$MONGO_PASSWORD@mongo:27017" --archive --gzip | \
                   rclone rcat b2-crypt:mongo-backups/$(date +%Y%m%d-%H%M).archive.gz
               env:
