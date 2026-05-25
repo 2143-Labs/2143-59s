@@ -21,8 +21,7 @@ spec:
           image: mongo:7
           args:
             - "--auth"
-            - "--enableEncryption"
-            - "--encryptionKeyFile=/etc/mongo/encryption.key"
+          env:
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               value: admin
@@ -36,13 +35,8 @@ spec:
           volumeMounts:
             - mountPath: /data/db
               name: mongodata
-            - mountPath: /etc/mongo
-              name: mongo-encryption-key
-              readOnly: true
+
       volumes:
         - name: mongodata
           persistentVolumeClaim:
             claimName: mongo-imagehost-pvc
-        - name: mongo-encryption-key
-          secret:
-            secretName: mongo-encryption-key
