@@ -19,7 +19,7 @@ spec:
       hostNetwork: true
       containers:
         - name: firewall-bouncer
-          image: crowdsecurity/firewall-bouncer:latest
+          image: crowdsecurity/crowdsec-firewall-bouncer:latest
           env:
             - name: LAPI_URL
               value: "http://crowdsec-service.crowdsec.svc.cluster.local:8080"
