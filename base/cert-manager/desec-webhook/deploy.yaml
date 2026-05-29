@@ -133,7 +133,7 @@ spec:
       serviceAccountName: desec-webhook
       containers:
         - name: desec-webhook
-          image: ghcr.io/irreleph4nt/cert-manager-webhook-desec-http:v1.0.1
+          image: ghcr.io/irreleph4nt/cert-manager-webhook-desec-http:1.0.1
           imagePullPolicy: IfNotPresent
           args:
             - --tls-cert-file=/tls/tls.crt
