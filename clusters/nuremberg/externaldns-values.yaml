@@ -1,5 +1,0 @@
-# ExternalDNS values — Nuremberg (EU)
-# Shared defaults (provider, port, zone, tsig) in ../../clusters/base-values.yaml
----
-rfc2136:
-  host: "k3s-nuremberg.9s.pics"

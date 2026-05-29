@@ -1,6 +1,7 @@
 # cert-manager ClusterIssuer — Let's Encrypt staging
 # Wave 0
 # Domain: 9s.pics
+# DNS01 via deSEC webhook (no more PowerDNS/RFC2136)
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -14,10 +15,11 @@ spec:
       name: letsencrypt-staging
     solvers:
       - dns01:
-          rfc2136:
-            nameserver: "k3s-ashburn.9s.pics"
-            tsigKeyName: "externaldns"
-            tsigAlgorithm: "HMACSHA256"
-            tsigSecretSecretRef:
-              name: rfc2136-credentials
-              key: tsig-key
+          webhook:
+            groupName: desec.9s.pics
+            solverName: desec-http
+            config:
+              apiUrl: https://desec.io/api/v1
+              domainName: 9s.pics
+              secretName: desec-token
+              secretKeyName: token

@@ -10,13 +10,13 @@ Reference: [hosting-research.md](https://github.com/John2143/dotfiles) · [hosti
 
 - 3 independent k3s clusters (not stretched) — SQLite per cluster
 - ArgoCD App-of-Apps with sync-wave ordering
-- k8gb for geoip DNS failover (60s TTL)
-- PowerDNS (host-level, NixOS) + ExternalDNS RFC2136
+- **deSEC.io** for all DNS (NS delegation + A records + cert-manager DNS01 via webhook)
+- Floating IPs for per-region node-level failover (auto-reassign on health check failure)
 - Traefik ingress + CrowdSec + split-IP DDoS
 - Istio service mesh (mTLS STRICT)
 - SeaweedFS encrypted object storage (local SSD, 3-way replication)
 - MongoDB self-hosted with encryption at rest
-- CloudNativePG for PostgreSQL (streaming replicas)
+- CloudNativePG for PostgreSQL (used by Temporal)
 - Temporal for durable execution
 - Backups: Backblaze B2 + home RustFS (rclone crypt)
 
@@ -26,9 +26,9 @@ Reference: [hosting-research.md](https://github.com/John2143/dotfiles) · [hosti
 argocd/
 ├── root-app.yaml              # Root Application (applied imperatively at bootstrap)
 ├── wave--2/namespaces.yaml    # Wave -2: Namespaces
-├── wave-0/                    # Wave 0: cert-manager (operator via systemd bootstrap)
+├── wave-0/                    # Wave 0: cert-manager, deSEC webhook, ClusterIssuers
 ├── wave-1/                    # Wave 1: Traefik, Longhorn
-├── wave-2/                    # Wave 2: ExternalDNS, k8gb
+├── wave-2/                    # Wave 2: (removed — no more ExternalDNS/k8gb)
 ├── wave-3/                    # Wave 3: CrowdSec, Istio
 ├── wave-4/                    # Wave 4: SeaweedFS
 ├── wave-5/                    # Wave 5: MongoDB, CloudNativePG, Temporal
@@ -37,18 +37,14 @@ argocd/
 └── wave-8/                    # Wave 8: Backups
 base/
 ├── namespaces.yaml
-├── argocd-bootstrap/          # Bootstrap helpers (secret injection now via systemd)
-├── k8gb/                      # Gslb CRDs
-├── externaldns/               # RFC2136 secret + config
-├── cert-manager/              # ClusterIssuers + certificates
+├── cert-manager/              # ClusterIssuers + certificates + deSEC webhook
 ├── traefik/                   # Dashboard + middlewares
 ├── crowdsec/                  # LAPI + agent + firewall bouncer
 ├── istio/                     # IstioOperator + mTLS + telemetry
-├── cilium/                    # CNI config (ruled out — using k3s default Flannel)
 ├── longhorn/                  # Storage values
 ├── seaweedfs/                 # Object storage HelmRelease + buckets
 ├── mongodb/                   # Deployment + PVC + encryption + backup
-├── cloudnativepg/             # PostgreSQL Cluster CR
+├── cloudnativepg/             # PostgreSQL Cluster CR (Temporal only)
 ├── temporal/                  # Server + worker values
 ├── monitoring/                # Prometheus + Grafana + Healthchecks
 ├── backups/                   # rclone config + backup CronJob
@@ -62,14 +58,11 @@ clusters/
 
 ## Sync Wave Order
 
-Wave-grouped directories make deployment order visible from the filesystem.
-
 | Wave | Directory | Component |
 |------|-----------|-----------|
 | -2   | `wave--2/` | Namespaces |
-| 0    | `wave-0/`  | cert-manager (operator via bootstrap) |
+| 0    | `wave-0/`  | cert-manager, deSEC webhook, ClusterIssuers |
 | 1    | `wave-1/`  | Traefik, Longhorn |
-| 2    | `wave-2/`  | ExternalDNS, k8gb |
 | 3    | `wave-3/`  | CrowdSec, Istio |
 | 4    | `wave-4/`  | SeaweedFS |
 | 5    | `wave-5/`  | MongoDB, CloudNativePG, Temporal |
@@ -85,14 +78,21 @@ All secrets are created by the NixOS host config (`k8s-secrets-bootstrap` system
 
 No secret material (encrypted or otherwise) ever enters git history. This repo is safe to make public.
 
-## Future: ApplicationSet Migration
+## DNS Architecture
 
-The current per-wave Application CRD approach is correct for the current scale (~28 components across 3 clusters). If cluster count or application count grows significantly, consider migrating to an [ApplicationSet matrix generator](https://argo-cd.readthedocs.io/en/stable/user-guide/application-set/) combining a Git directory generator with a cluster generator. This would eliminate per-cluster Application CRD duplication and auto-discover new clusters via label matching.
+All DNS is handled by **deSEC.io**. No self-hosted PowerDNS or k8gb.
+
+- **NS delegation**: `9s.pics` NS records at deSEC delegate to `ns1/ns2/ns3.9s.pics` with glue A records pointing to per-region floating IPs
+- **Service records**: Static A records (`john2143.9s.pics`, `openfront.9s.pics`, etc.) point to floating IPs — set once during provisioning, never need updating
+- **cert-manager DNS01**: deSEC webhook creates ACME challenge TXT records
+- **headscale.9s.pics**: Updated via deSEC DDNS timer on home-pi (dynamic public IP)
+
+Node-level failover is handled entirely by **floating IP reassignment** (2-5s via Hetzner API), not DNS TTL changes.
 
 ## What's NOT Here
 
 - NixOS configurations → [dotfiles repo](https://github.com/John2143/dotfiles)
 - ArgoCD installation → bootstrapped during NixOS provisioning
-- PowerDNS/Galera config → NixOS host modules
+- DNS management (PowerDNS/k8gb removed) → deSEC.io
 - Bunny CDN → manual DNS change
 - Backblaze B2 bucket → manual one-time creation

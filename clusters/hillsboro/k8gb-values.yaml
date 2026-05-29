@@ -1,9 +1,0 @@
-# k8gb values — Hillsboro (US West)
-# Shared defaults (dnsZones, edgeDNS, splitBrain, extdns) in ../../clusters/base-values.yaml
----
-k8gb:
-  clusterGeoTag: "us-hillsboro"
-  extGslbClustersGeoTags: "us-ashburn,eu-nuremberg"
-  extdns:
-    txtPrefix: "k8gb-hil-"
-    txtOwnerId: "k8gb-hil"

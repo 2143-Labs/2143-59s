@@ -1,9 +1,0 @@
-# k8gb values — Nuremberg (EU)
-# Shared defaults (dnsZones, edgeDNS, splitBrain, extdns) in ../../clusters/base-values.yaml
----
-k8gb:
-  clusterGeoTag: "eu-nuremberg"
-  extGslbClustersGeoTags: "us-ashburn,us-hillsboro"
-  extdns:
-    txtPrefix: "k8gb-nur-"
-    txtOwnerId: "k8gb-nur"

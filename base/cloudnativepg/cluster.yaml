@@ -1,4 +1,4 @@
-# CloudNativePG Cluster — PostgreSQL for PowerDNS + Temporal
+# CloudNativePG Cluster — PostgreSQL for Temporal
 # Wave 5
 # Each k3s cluster gets its own independent PostgreSQL instance (instances: 1).
 # Roles and passwords are managed declaratively via spec.managed.roles.
@@ -12,13 +12,6 @@ metadata:
 spec:
   managed:
     roles:
-      - name: pdns
-        ensure: present
-        login: true
-        createDB: true
-        passwordSecret:
-          name: pdns-postgres-password
-          key: password
       - name: temporal
         ensure: present
         login: true
@@ -35,9 +28,7 @@ spec:
   # Bootstrap via initdb with managed roles (CNPG 1.25+)
   bootstrap:
     initdb:
-      database: pdns
-      owner: pdns
-      postInitSQL:
-        - CREATE DATABASE temporal OWNER pdns
-# pdns-postgres-password and temporal-postgres-password Secrets are injected by
+      database: temporal
+      owner: temporal
+# temporal-postgres-password Secret is injected by
 # k8s-secrets-bootstrap systemd oneshot — NOT managed by ArgoCD.

@@ -1,0 +1,283 @@
+# cert-manager deSEC webhook — ACME DNS01 solver
+# Wave 0 (alongside ClusterIssuer)
+# Uses deSEC API to create DNS01 challenge TXT records.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: desec-webhook
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: desec-webhook:domain-solver
+  labels:
+    app: desec-webhook
+rules:
+  - apiGroups: ["desec.9s.pics"]
+    resources: ["*"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: desec-webhook:auth-delegator
+  labels:
+    app: desec-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: desec-webhook
+    namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: desec-webhook:domain-solver
+  labels:
+    app: desec-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: desec-webhook:domain-solver
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager
+    namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: desec-webhook:secret-reader
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["desec-token"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: desec-webhook:webhook-authentication-reader
+  namespace: kube-system
+  labels:
+    app: desec-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - kind: ServiceAccount
+    name: desec-webhook
+    namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: desec-webhook:secret-reader
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: desec-webhook:secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: desec-webhook
+    namespace: cert-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: desec-webhook
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: https
+      protocol: TCP
+      name: https
+  selector:
+    app: desec-webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desec-webhook
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: desec-webhook
+  template:
+    metadata:
+      labels:
+        app: desec-webhook
+    spec:
+      serviceAccountName: desec-webhook
+      containers:
+        - name: desec-webhook
+          image: ghcr.io/irreleph4nt/cert-manager-webhook-desec-http:v1.0.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --tls-cert-file=/tls/tls.crt
+            - --tls-private-key-file=/tls/tls.key
+          env:
+            - name: GROUP_NAME
+              value: "desec.9s.pics"
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /healthz
+              port: https
+          volumeMounts:
+            - name: certs
+              mountPath: /tls
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+      volumes:
+        - name: certs
+          secret:
+            secretName: desec-webhook-webhook-tls
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.desec.9s.pics
+  labels:
+    app: desec-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: "cert-manager/desec-webhook-webhook-tls"
+spec:
+  group: desec.9s.pics
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  service:
+    name: desec-webhook
+    namespace: cert-manager
+  version: v1alpha1
+---
+# Self-signed issuer for webhook TLS
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: desec-webhook-selfsign
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  selfSigned: {}
+---
+# CA certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: desec-webhook-ca
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  secretName: desec-webhook-ca
+  duration: 43800h
+  issuerRef:
+    name: desec-webhook-selfsign
+  commonName: ca.desec-webhook.cert-manager
+  isCA: true
+---
+# Issuer from CA
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: desec-webhook-ca-issuer
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  ca:
+    secretName: desec-webhook-ca
+---
+# Serving certificate for the webhook
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: desec-webhook-webhook-tls
+  namespace: cert-manager
+  labels:
+    app: desec-webhook
+spec:
+  secretName: desec-webhook-webhook-tls
+  duration: 8760h
+  issuerRef:
+    name: desec-webhook-ca-issuer
+  dnsNames:
+    - desec-webhook
+    - desec-webhook.cert-manager
+    - desec-webhook.cert-manager.svc
+---
+# Placeholder for desec-token Secret (injected by k8s-secrets-bootstrap)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: desec-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  token: PLACEHOLDER_DESEC_TOKEN
+---
+# ClusterRole for flowcontrol (required for API priority)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: desec-webhook:flowcontrol-solver
+  labels:
+    app: desec-webhook
+rules:
+  - apiGroups: ["flowcontrol.apiserver.k8s.io"]
+    resources: ["prioritylevelconfigurations", "flowschemas"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: desec-webhook:flowcontrol-solver
+  labels:
+    app: desec-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: desec-webhook:flowcontrol-solver
+subjects:
+  - kind: ServiceAccount
+    name: desec-webhook
+    namespace: cert-manager
