@@ -1,0 +1,41 @@
+# cert-manager Certificates — HTTP01 (no DNS01 needed)
+# Wave 0 (after ClusterIssuer)
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: john2143-9s-pics
+  namespace: default
+spec:
+  secretName: john2143-9s-pics-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "john2143.9s.pics"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openfront-9s-pics
+  namespace: default
+spec:
+  secretName: openfront-9s-pics-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "openfront.9s.pics"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: simulation-api-9s-pics
+  namespace: default
+spec:
+  secretName: simulation-api-9s-pics-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "simulation-api.9s.pics"

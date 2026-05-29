@@ -8,7 +8,7 @@ metadata:
   name: john2143-com
   namespace: default
   annotations:
-    traefik.ingress.kubernetes.io/router.tls.certresolver: le
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.middlewares: traefik-crowdsec-protected@kubernetescrd
 spec:
   ingressClassName: traefik
