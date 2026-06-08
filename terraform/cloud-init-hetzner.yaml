@@ -1,0 +1,8 @@
+#cloud-config
+# Cloud-init for Hetzner k3s nodes — fixes SSH MaxStartups before sshd starts.
+# Same fix as DO: hetzner nodes also get hammered by concurrent SSH during
+# nixos-anywhere deploy (kexec + disko + install phases).
+
+bootcmd:
+  - sed -i 's/^#MaxStartups.*/MaxStartups 100:100:200/' /etc/ssh/sshd_config
+  - echo 'MaxSessions 100' >> /etc/ssh/sshd_config

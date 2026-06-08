@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# tofu-wrap — sources S3 + cloud credentials from agenix silently, then runs tofu.
+# Usage: tofu-wrap [plan|apply|destroy|init|output|...]
+set -euo pipefail
+
+TOFU_DIR="$(cd "$(dirname "$0")" && pwd)"
+SECRETS_DIR="$HOME/repos/dotfiles/nixos/cluster/secrets"
+
+# Export S3 credentials for remote state
+while IFS='=' read -r key value; do
+  export "$key"="$value"
+done < <(cd "$SECRETS_DIR" && agenix -d s3-credentials.age -i "$HOME/.ssh/age" 2>/dev/null)
+
+# Cloud API tokens (needed for plan, apply, destroy)
+export TF_VAR_digitalocean_token
+TF_VAR_digitalocean_token="$(cd "$SECRETS_DIR" && agenix -d do-pat.age -i "$HOME/.ssh/age" 2>/dev/null)"
+
+export TF_VAR_hcloud_token
+TF_VAR_hcloud_token="$(cd "$SECRETS_DIR" && agenix -d hetzner/hcloud-token.age -i "$HOME/.ssh/age" 2>/dev/null)"
+
+cd "$TOFU_DIR"
+exec tofu "$@"

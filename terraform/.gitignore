@@ -1,0 +1,25 @@
+# OpenTofu state
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate*
+*.tfstate.*.backup
+
+# Provider cache
+.terraform/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# SSH keys (decrypted)
+*.pem
+*.key
+k3s-cloud-*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

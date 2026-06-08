@@ -1,0 +1,69 @@
+# ── Multi-Cloud k3s Cluster Specification ──
+# deploy_all.py reads this for cluster metadata (cloud, region, geo).
+# OpenTofu reads cluster definitions from main.tf HCL locals.
+# ArgoCD uses per-cluster values in 2143-59s/clusters/<cloud>-<region>/.
+#
+# Note: the HCL locals in main.tf are the source of truth for cloud
+# provisioning. This YAML file provides metadata for the deploy script
+# and keeps the cluster inventory readable outside of HCL.
+
+version: 2
+
+defaults:
+  image: ubuntu-24.04
+  ssh_key_name: k3s-cloud
+  tags:
+    - "k3s"
+    - "john2143"
+    - "managed-by-tofu"
+
+providers:
+  hetzner:
+    token_env: HCLOUD_TOKEN
+  digitalocean:
+    token_env: DIGITALOCEAN_TOKEN
+
+clusters:
+  - name: hetzner-ashburn-k3s
+    cloud: hetzner
+    region: ashburn
+    geo_tag: us-ashburn
+    floating_ip: true
+    labels:
+      k3s: "true"
+      owner: "john2143"
+      managed-by: "tofu"
+      role: "k3s-server"
+    nodes:
+      - role: server
+        size: cpx21
+
+  - name: hetzner-hillsboro-k3s
+    cloud: hetzner
+    region: hillsboro
+    geo_tag: us-hillsboro
+    floating_ip: true
+    labels:
+      k3s: "true"
+      owner: "john2143"
+      managed-by: "tofu"
+      role: "k3s-server"
+    nodes:
+      - role: server
+        size: cpx31
+
+  # DO cluster enabled with cloud-init fix (modules/digitalocean.nix)
+  - name: do-nyc-k3s
+    cloud: digitalocean
+    region: nyc1
+    geo_tag: us-nyc
+    floating_ip: true
+    image: ubuntu-24-04-x64
+    tags:
+      - "k3s"
+      - "john2143"
+      - "managed-by-tofu"
+      - "k3s-server"
+    nodes:
+      - role: server
+        size: s-2vcpu-4gb
