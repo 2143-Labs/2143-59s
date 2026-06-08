@@ -1,4 +1,4 @@
-# Base Helm Values — shared defaults across all 3 clusters (ashburn, hillsboro, nuremberg)
+# Base Helm Values — shared defaults across all clusters (hetzner-ashburn, hetzner-hillsboro, do-nyc)
 # Loaded first; per-cluster values files override these settings.
 # Reference from Application manifests as:
 #   helm:

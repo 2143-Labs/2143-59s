@@ -1,8 +1,0 @@
-# Istio values — Nuremberg (EU)
-# Shared defaults (meshConfig, pilot) in ../../clusters/base-values.yaml
----
-global:
-  meshID: "mesh-nuremberg"
-  network: "nuremberg-network"
-  multiCluster:
-    clusterName: "nuremberg"

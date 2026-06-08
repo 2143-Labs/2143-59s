@@ -1,0 +1,31 @@
+
+# cert-manager ClusterIssuer — Let's Encrypt production
+# Wave 0
+# Domain: 9s.pics
+#
+# NOTE: The `nameserver` field is cluster-specific. Per-cluster overrides exist in
+# clusters/<region>/cert-manager-clusterissuer.yaml. Each cluster must use its local
+# PowerDNS server. When ApplicationSet migration is complete, the per-cluster files
+# will replace this base template automatically.
+#
+# Default nameserver below is for Hetzner Ashburn. Override per cluster.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: john@9s.pics
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - dns01:
+          rfc2136:
+            nameserver: "hetzner-ashburn-k3s.9s.pics"
+            tsigKeyName: "externaldns"
+            tsigAlgorithm: "HMACSHA256"
+            tsigSecretSecretRef:
+              name: rfc2136-credentials
+              key: rfc2136TsigSecret
