@@ -1,0 +1,8 @@
+# Istio values — Hillsboro (US West)
+# Shared defaults (meshConfig, pilot) in ../../clusters/base-values.yaml
+---
+global:
+  meshID: "mesh-hillsboro"
+  network: "hillsboro-network"
+  multiCluster:
+    clusterName: "hillsboro"

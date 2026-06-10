@@ -41,15 +41,21 @@ def deploy_nixos(
     # Wait for SSH to become available
     info(f"[{cloud}/{region}] Waiting for SSH on {host_ip}...")
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
+    _fix_maxstartups(host_ip, ssh_private_key_path)
+
 
     # Build the flake reference
     flake_ref = f"{FLAKE_PATH}#{hostname}"
 
     # Run nixos-anywhere
     cmd = ["nixos-anywhere", "--flake", flake_ref]
+    cmd.extend(["--ssh-option", "ControlMaster=auto"])
+    cmd.extend(["--ssh-option", "ControlPath=/tmp/ssh-%r@%h:%p"])
+    cmd.extend(["--ssh-option", "ControlPersist=300"])
     if ssh_private_key_path:
         cmd.extend(["-i", ssh_private_key_path])
     cmd.append(f"root@{host_ip}")
+
 
     info(f"[{cloud}/{region}] Running: {' '.join(cmd)}")
     result = subprocess.run(
@@ -75,14 +81,18 @@ def deploy_nixos(
 def _wait_for_ssh(
     host_ip: str,
     ssh_key_path: Optional[str] = None,
-    max_wait: int = 120,
+    max_wait: int = 60,
+
 ) -> None:
     """Poll SSH until it accepts connections."""
     deadline = time.time() + max_wait
     while time.time() < deadline:
         cmd = [
             "ssh", "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "ConnectTimeout=5", "-o", "BatchMode=yes",
+            "-o", "ConnectTimeout=10", "-o", "BatchMode=yes",
+            "-o", "ControlMaster=auto",
+            "-o", "ControlPath=/tmp/ssh-%r@%h:%p",
+            "-o", "ControlPersist=300",
         ]
         if ssh_key_path:
             cmd.extend(["-i", ssh_key_path])
@@ -90,6 +100,31 @@ def _wait_for_ssh(
         result = subprocess.run(cmd, capture_output=True, text=True)
         if "ok" in result.stdout:
             return
-        time.sleep(5)
+        time.sleep(20)
 
     raise TimeoutError(f"SSH to {host_ip} did not become available within {max_wait}s")
+
+
+def _fix_maxstartups(host_ip: str, ssh_key_path: Optional[str] = None) -> None:
+    """Apply MaxStartups fix via SSH (cloud-init on DO skips bootcmd/write_files)."""
+    cmd = [
+        "ssh", "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=10",
+        "-o", "ControlMaster=auto",
+        "-o", "ControlPath=/tmp/ssh-%r@%h:%p",
+        "-o", "ControlPersist=300",
+    ]
+    if ssh_key_path:
+        cmd.extend(["-i", ssh_key_path])
+    cmd.extend(["root@{}".format(host_ip), (
+        "mkdir -p /etc/ssh/sshd_config.d && "
+        "cat > /etc/ssh/sshd_config.d/99-maxstartups.conf << 'EOF'\n"
+        "MaxStartups 100:100:200\n"
+        "MaxSessions 100\n"
+        "EOF\n"
+        "systemctl reload sshd 2>/dev/null || true\n"
+        "grep -c 'MaxStartups 100:100:200' /etc/ssh/sshd_config.d/99-maxstartups.conf || echo 'FIX FAILED'"
+    )])
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    if "FIX FAILED" in result.stdout:
+        raise RuntimeError(f"Failed to apply MaxStartups fix on {host_ip}: {result.stdout.strip()} {result.stderr.strip()}")

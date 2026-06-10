@@ -41,7 +41,7 @@ def tofu_output_key(cluster_name: str) -> str:
 def get_stack_outputs() -> dict:
     """Read OpenTofu stack outputs via CLI."""
     result = subprocess.run(
-        ["tofu", "output", "-json"],
+        [str(TOFU_DIR / "tofu-wrap"), "output", "-json"],
         capture_output=True, text=True,
         cwd=TOFU_DIR,
     )
@@ -52,12 +52,13 @@ def get_stack_outputs() -> dict:
 
 
 def deploy_one(cluster_name: str, server_ip: str, fip: str,
-               cloud: str, region: str, ssh_key_path: str) -> dict:
+               cloud: str, region: str, geo_tag: str, ssh_key_path: str) -> dict:
+
     """Deploy and configure one cluster. Returns result dict."""
     log("INFO", f"[{cloud}/{region}] Deploying {cluster_name} ({server_ip})...")
     result = {
         "name": cluster_name, "ip": server_ip, "fip": fip,
-        "cloud": cloud, "region": region,
+        "cloud": cloud, "region": region, "geo": geo_tag,
     }
 
     try:
@@ -133,7 +134,7 @@ def write_fip_configmaps(results: list, outputs: dict):
             fip_registry[r["region"]] = {
                 "ip": r["fip"],
                 "cloud": r["cloud"],
-                "geo": r["region"].replace("nyc", "us-nyc").replace("ashburn", "us-ashburn").replace("hillsboro", "us-hillsboro"),
+                "geo": r.get("geo", r["region"]),
             }
 
     if not fip_registry:
@@ -161,13 +162,54 @@ def write_fip_configmaps(results: list, outputs: dict):
             except Exception as e:
                 log("WARN", f"[{r['cloud']}/{r['region']}] FIP ConfigMap failed: {e}")
 
+# ── Pre-checks ──────────────────────────────────────────────────────
+
+FLAKE_PATH = os.path.expanduser("~/repos/dotfiles/nixos/cluster")
+
+def precheck_nixos_configs(cluster_names: list) -> bool:
+    """Verify all NixOS configurations evaluate without errors."""
+    log("INFO", "Pre-check: evaluating NixOS configurations...")
+    for name in cluster_names:
+        flake_ref = f"{FLAKE_PATH}#nixosConfigurations.{name}.config.networking.hostName"
+        result = subprocess.run(
+            ["nix", "eval", flake_ref],
+            capture_output=True, text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            log("ERROR", f"NixOS config '{name}' FAILED to evaluate:\n{result.stderr.strip()[-500:]}")
+            return False
+        log("INFO", f"  {name}: OK")
+    return True
+
+
+def precheck_ssh_connectivity(tasks: list, ssh_key_path: str) -> bool:
+    """Verify SSH access to all nodes before starting nixos-anywhere."""
+    log("INFO", "Pre-check: testing SSH connectivity...")
+    for t in tasks:
+        cluster_name, server_ip = t[0], t[1]
+        cmd = [
+            "ssh", "-o", "StrictHostKeyChecking=accept-new",
+            "-o", "ConnectTimeout=10", "-o", "BatchMode=yes",
+        ]
+        if ssh_key_path:
+            cmd.extend(["-i", ssh_key_path])
+        cmd.extend([f"root@{server_ip}", "echo ok"])
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if "ok" not in result.stdout:
+            log("ERROR", f"SSH check FAILED for {cluster_name} ({server_ip})")
+            return False
+        log("INFO", f"  {cluster_name} ({server_ip}): OK")
+    return True
+
 
 # ── Main ─────────────────────────────────────────────────────────────
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Deploy NixOS to all OpenTofu-provisioned clusters")
-    parser.add_argument("--workers", type=int, default=3, help="Parallel workers (default: 3)")
+    parser.add_argument("--workers", type=int, default=1, help="Parallel workers (default: 1)")
+
     args = parser.parse_args()
 
     log("INFO", "=" * 60)
@@ -208,6 +250,7 @@ def main():
         tasks.append((
             cluster_name, server_ip, fip,
             cluster_spec.cloud.value, cluster_spec.region,
+            cluster_spec.geo_tag,
             ssh_key_path
         ))
 
@@ -215,8 +258,21 @@ def main():
         log("ERROR", "No clusters to deploy")
         sys.exit(1)
 
-    log("INFO", f"Deploying {len(tasks)} clusters (workers={args.workers})...\n")
+    if args.workers > 1:
+        log("WARN", f"Workers={args.workers} — MaxStartups exhaustion risk. Only set >1 if you've increased sshd MaxStartups on all nodes.")
 
+    # Pre-checks
+    log("INFO", "Running pre-checks...")
+    if not precheck_nixos_configs(cluster_names):
+        log("ERROR", "Pre-check failed: NixOS config evaluation. Fix configs and re-run.")
+        sys.exit(1)
+
+    if not precheck_ssh_connectivity(tasks, ssh_key_path):
+        log("ERROR", "Pre-check failed: SSH connectivity. Verify nodes are up.")
+        sys.exit(1)
+
+    log("INFO", "All pre-checks passed.\n")
+    log("INFO", f"Deploying {len(tasks)} clusters (workers={args.workers})...\n")
     # Run deploys in parallel
     results = []
     with ThreadPoolExecutor(max_workers=args.workers) as executor:

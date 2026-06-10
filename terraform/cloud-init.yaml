@@ -2,9 +2,13 @@
 # Cloud-init for DO droplets — fixes SSH MaxStartups before sshd starts.
 # Without this, DO infrastructure health checks exhaust the default
 # MaxStartups (10:30:100) before nixos-anywhere can connect.
+#
+# Note: DO's ConfigDrive datasource only supports certain modules.
+# bootcmd and write_files are skipped, but runcmd works.
 
-bootcmd:
-  # Replace MaxStartups BEFORE sshd starts (bootcmd runs early)
-  - sed -i 's/^#MaxStartups.*/MaxStartups 100:100:200/' /etc/ssh/sshd_config
-  # Also increase MaxSessions
-  - echo 'MaxSessions 100' >> /etc/ssh/sshd_config
+runcmd:
+  # Write sshd config drop-in for MaxStartups
+  - mkdir -p /etc/ssh/sshd_config.d
+  - sh -c 'echo "MaxStartups 100:100:200" > /etc/ssh/sshd_config.d/99-maxstartups.conf && echo "MaxSessions 100" >> /etc/ssh/sshd_config.d/99-maxstartups.conf'
+  # Reload (not restart) sshd — SIGHUP re-reads config without dropping connections
+  - systemctl reload sshd || true

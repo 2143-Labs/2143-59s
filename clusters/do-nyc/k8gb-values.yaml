@@ -1,0 +1,9 @@
+# k8gb values — DigitalOcean NYC (US)
+# Shared defaults (dnsZones, edgeDNS, splitBrain, extdns) in ../../clusters/base-values.yaml
+---
+k8gb:
+  clusterGeoTag: "us-nyc"
+  extGslbClustersGeoTags: "us-ashburn,us-hillsboro"
+  extdns:
+    txtPrefix: "k8gb-nyc-"
+    txtOwnerId: "k8gb-nyc"

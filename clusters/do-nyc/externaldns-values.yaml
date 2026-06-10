@@ -1,0 +1,5 @@
+# ExternalDNS values — DigitalOcean NYC (US)
+# Shared defaults (provider, port, zone, tsig) in ../../clusters/base-values.yaml
+---
+rfc2136:
+  host: "do-nyc-k3s.9s.pics"

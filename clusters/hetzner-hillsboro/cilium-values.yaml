@@ -1,0 +1,8 @@
+# Cilium per-cluster override — Hillsboro (US West)
+# Shared defaults in ../../base/cilium/cilium-values.yaml
+# Ready for ApplicationSet migration: valueFiles ordering loads this last.
+---
+cilium:
+  cluster:
+    name: hillsboro
+    id: 2

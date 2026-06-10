@@ -1,0 +1,8 @@
+# Cilium per-cluster override — DigitalOcean NYC (US)
+# Shared defaults in ../../base/cilium/cilium-values.yaml
+# Ready for ApplicationSet migration: valueFiles ordering loads this last.
+---
+cilium:
+  cluster:
+    name: do-nyc
+    id: 3

@@ -1,0 +1,5 @@
+# ExternalDNS values — Ashburn (US East)
+# Shared defaults (provider, port, zone, tsig) in ../../clusters/base-values.yaml
+---
+rfc2136:
+  host: "hetzner-ashburn-k3s.9s.pics"

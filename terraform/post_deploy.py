@@ -100,7 +100,7 @@ def _wait_for_nixos(host_ip: str, hostname: str, timeout: int = 600) -> None:
                 return
         except Exception:
             pass
-        time.sleep(5)
+        time.sleep(20)
     raise TimeoutError(f"NixOS did not finish booting on {host_ip} within {timeout}s")
 
 

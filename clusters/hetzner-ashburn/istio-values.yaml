@@ -1,0 +1,8 @@
+# Istio values — Ashburn (US East)
+# Shared defaults (meshConfig, pilot) in ../../clusters/base-values.yaml
+---
+global:
+  meshID: "mesh-ashburn"
+  network: "ashburn-network"
+  multiCluster:
+    clusterName: "ashburn"

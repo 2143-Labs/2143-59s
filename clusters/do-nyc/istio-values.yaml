@@ -1,0 +1,8 @@
+# Istio values — DigitalOcean NYC (US)
+# Shared defaults (meshConfig, pilot) in ../../clusters/base-values.yaml
+---
+global:
+  meshID: "mesh-do-nyc"
+  network: "do-nyc-network"
+  multiCluster:
+    clusterName: "do-nyc"
