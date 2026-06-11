@@ -20,22 +20,17 @@ def post_deploy(
     timeout: int = 300,
 ) -> dict:
     """Run all post-deploy steps on a freshly-provisioned node.
-
-    Steps:
-      1. Wait for NixOS reboot
-      2. Copy age key to /etc/agenix/identities/
-      3. Rekey agenix secrets
-      4. Restart affected services
-      5. Tailscale connect via headscale preauth key
-      6. Verify k3s is running
-      7. Return node status
-
-    Returns dict with status info (k3s version, tailscale IP, etc.)
+    Returns dict with status info plus timing keys (seconds from start).
     """
+    t0 = time.time()
+    timing = {}
+
+
     info(f"[{cloud}/{region}] Post-deploy for {hostname}...")
 
     # Step 1: Wait for NixOS to finish rebooting (longer timeout for first boot)
     _wait_for_nixos(host_ip, hostname, timeout=600)
+    timing["nixos_booted"] = time.time() - t0
 
     # Step 2: Copy age key to both locations agenix checks
     info(f"[{cloud}/{region}] Copying age identity...")
@@ -64,11 +59,11 @@ def post_deploy(
     # Step 4: Restart k3s (now that k3s-token is decrypted)
     info(f"[{cloud}/{region}] Restarting k3s...")
     ssh_exec(host_ip, "systemctl restart k3s 2>/dev/null || true", timeout=30)
-
+    timing["k3s_restarted"] = time.time() - t0
     # Step 5: Tailscale connect
     info(f"[{cloud}/{region}] Connecting Tailscale...")
     _connect_tailscale(host_ip)
-
+    timing["tailscale_done"] = time.time() - t0
     # Step 6: Verify k3s
     info(f"[{cloud}/{region}] Verifying k3s...")
     k3s_version = ssh_exec(host_ip, "k3s --version 2>&1 | head -1", timeout=10)
@@ -84,7 +79,8 @@ def post_deploy(
         "nodes": nodes.strip(),
         "tailscale": ts_status.strip(),
     }
-
+    timing["verify_done"] = time.time() - t0
+    status["timing"] = timing
     info(f"[{cloud}/{region}] Post-deploy complete: {status}")
     return status
 

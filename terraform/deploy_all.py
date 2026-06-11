@@ -62,7 +62,7 @@ def deploy_one(cluster_name: str, server_ip: str, fip: str,
     }
 
     try:
-        deploy_nixos(
+        deploy_result = deploy_nixos(
             host_ip=server_ip, hostname=cluster_name,
             cloud=cloud, region=region,
             ssh_private_key_path=ssh_key_path,
@@ -76,6 +76,10 @@ def deploy_one(cluster_name: str, server_ip: str, fip: str,
         result["success"] = True
         result["k3s_version"] = post_result.get("k3s_version", "?")
         result["tailscale_ip"] = post_result.get("tailscale_ip", "?")
+        result["timing"] = {
+            "deploy": deploy_result.get("timing", {}),
+            "post_deploy": post_result.get("timing", {}),
+        }
         log("INFO", f"[{cloud}/{region}] Complete — k3s {result['k3s_version']}, TS {result['tailscale_ip']}")
 
     except Exception as e:
@@ -161,6 +165,71 @@ def write_fip_configmaps(results: list, outputs: dict):
                 log("INFO", f"[{r['cloud']}/{r['region']}] FIP ConfigMap applied.")
             except Exception as e:
                 log("WARN", f"[{r['cloud']}/{r['region']}] FIP ConfigMap failed: {e}")
+
+# ── Metrics table ────────────────────────────────────────────────────
+
+def fmt_sec(s: float) -> str:
+    """Format seconds as XXXs or XXm."""
+    if s >= 120:
+        return f"{s/60:.0f}m"
+    return f"{s:.0f}s"
+
+
+METRIC_ROWS = [
+    ("ssh_ready", "SSH ready"),
+    ("maxstartups_done", "MaxStartups fix"),
+    ("bzip2_done", "Install bzip2"),
+    ("phase1_done", "NixOS install"),
+    ("phase1_install", "nixos-anywhere"),
+    ("reboot_done", "Reboot wait"),
+    ("phase2_done", "nixos-rebuild"),
+    ("nixos_booted", "Post: wait boot"),
+    ("k3s_restarted", "Post: k3s restart"),
+    ("tailscale_done", "Post: Tailscale"),
+    ("verify_done", "Post: verify"),
+]
+
+
+def print_metrics_table(results: list):
+    """Print a timing metrics summary table."""
+    successful = [r for r in results if r.get("success") and r.get("timing")]
+    if not successful:
+        log("INFO", "(no timing data to display)")
+        return
+
+    # Column headers
+    names = [r["name"] for r in successful]
+    col_w = max(len(n) for n in names + ["Stage"])
+    hdr = f"{'Stage':<{col_w}} | " + " | ".join(f"{n:<{col_w}}" for n in names)
+    sep = "-" * len(hdr)
+
+    log("INFO", f"\n{'=' * 60}")
+    log("INFO", "Deployment Timing Metrics")
+    log("INFO", f"{'=' * 60}")
+    log("INFO", hdr)
+    log("INFO", sep)
+
+    for key, label in METRIC_ROWS:
+        cells = []
+        for r in successful:
+            t = r["timing"]
+            val = (t.get("deploy", {}).get(key) or
+                   t.get("post_deploy", {}).get(key))
+            if val is not None:
+                cells.append(f"{fmt_sec(val):<{col_w}}")
+            else:
+                cells.append(f"{'—':<{col_w}}")
+        log("INFO", f"{label:<{col_w}} | " + " | ".join(cells))
+
+    log("INFO", sep)
+    total_cells = []
+    for r in successful:
+        t = r["timing"]
+        total = (t.get("deploy", {}).get("total", 0) +
+                 t.get("post_deploy", {}).get("verify_done", 0))
+        total_cells.append(f"{fmt_sec(total):<{col_w}}")
+    log("INFO", f"{'TOTAL':<{col_w}} | " + " | ".join(total_cells))
+    log("INFO", f"{'=' * 60}")
 
 # ── Pre-checks ──────────────────────────────────────────────────────
 
@@ -280,6 +349,9 @@ def main():
         for future in as_completed(futures):
             result = future.result()
             results.append(result)
+
+    # Print timing metrics table
+    print_metrics_table(results)
 
     # Write FIP ConfigMaps to all successfully provisioned clusters
     write_fip_configmaps(results, outputs)

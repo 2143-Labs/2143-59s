@@ -47,11 +47,19 @@ def deploy_nixos(
     region: str,
     ssh_private_key_path: Optional[str] = None,
     timeout: int = 600,
-) -> str:
-    """Deploy NixOS to a cloud VM. Dispatches to nixos-anywhere or nixos-infect based on cloud."""
+) -> dict:
+    """Deploy NixOS to a cloud VM. Dispatches to nixos-anywhere or nixos-infect based on cloud.
+
+    Returns:
+        dict with keys: stdout (str), timing (dict of stage durations in seconds).
+    """
+    t0 = time.time()
     if cloud == "digitalocean":
-        return _deploy_nixos_infect(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
-    return _deploy_nixos_anywhere(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
+        result = _deploy_nixos_infect(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
+    else:
+        result = _deploy_nixos_anywhere(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
+    result["timing"]["total"] = time.time() - t0
+    return result
 
 
 def _build_ssh_base_cmd(ssh_key_path: Optional[str] = None) -> list:
@@ -75,7 +83,7 @@ def _deploy_nixos_anywhere(
     region: str,
     ssh_private_key_path: Optional[str] = None,
     timeout: int = 600,
-) -> str:
+) -> dict:
     """Run nixos-anywhere to deploy NixOS to a cloud VM.
 
     Args:
@@ -87,15 +95,19 @@ def _deploy_nixos_anywhere(
         timeout: Max seconds to wait for deployment.
 
     Returns:
-        stdout from nixos-anywhere.
+        dict with keys: stdout (str), timing (dict of stage durations).
     """
+    timing = {}
+    t0 = time.time()
 
     info(f"[{cloud}/{region}] Deploying NixOS ({hostname}) to {host_ip} via nixos-anywhere...")
 
     # Wait for SSH to become available
     info(f"[{cloud}/{region}] Waiting for SSH on {host_ip}...")
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
+    timing["ssh_ready"] = time.time() - t0
     _fix_maxstartups(host_ip, ssh_private_key_path)
+    timing["maxstartups_done"] = time.time() - t0
 
     # Build the flake reference
     flake_ref = f"{FLAKE_PATH}#{hostname}"
@@ -127,8 +139,9 @@ def _deploy_nixos_anywhere(
             f"stderr: {result.stderr[-2000:]}"
         )
 
-    info(f"[{cloud}/{region}] nixos-anywhere completed successfully.")
-    return result.stdout
+    timing["phase1_install"] = time.time() - t0
+    info(f"[{cloud}/{region}] nixos-anywhere completed successfully. ({timing['phase1_install']:.0f}s)")
+    return {"stdout": result.stdout, "timing": timing}
 
 def _deploy_nixos_infect(
     host_ip: str,
@@ -137,7 +150,7 @@ def _deploy_nixos_infect(
     region: str,
     ssh_private_key_path: Optional[str] = None,
     timeout: int = 900,
-) -> str:
+) -> dict:
     """Deploy NixOS via nixos-infect (in-place install, no kexec).
 
     Phase 1: Run nixos-infect from curl to replace Ubuntu with base NixOS.
@@ -152,13 +165,18 @@ def _deploy_nixos_infect(
         timeout: Max seconds for the full operation.
 
     Returns:
-        Combined stdout from both phases.
+        dict with keys: stdout (str), timing (dict of stage durations).
     """
+    timing = {}
+    t0 = time.time()
+
     info(f"[{cloud}/{region}] Deploying NixOS ({hostname}) to {host_ip} via nixos-infect...")
 
     # Phase 1: Wait for SSH, fix MaxStartups, run nixos-infect
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
+    timing["ssh_ready"] = time.time() - t0
     _fix_maxstartups(host_ip, ssh_private_key_path)
+    timing["maxstartups_done"] = time.time() - t0
 
     # Ubuntu 24.04 doesn't ship bzcat, but nixos-infect needs it.
     info(f"[{cloud}/{region}] Installing bzip2 (prerequisite for nixos-infect)...")
@@ -167,6 +185,7 @@ def _deploy_nixos_infect(
         "apt-get update -qq && apt-get install -y -qq bzip2 && echo 'bzip2 OK'",
     ]
     subprocess.run(bzip_cmd, capture_output=True, text=True, timeout=60)
+    timing["bzip2_done"] = time.time() - t0
 
     info(f"[{cloud}/{region}] Running nixos-infect (Phase 1)...")
     infect_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
@@ -184,12 +203,12 @@ def _deploy_nixos_infect(
         output = e.stdout or ""
         warn(f"[{cloud}/{region}] nixos-infect SSH timed out ({timeout}s), "
              "system may have rebooted — continuing...")
-
     info(f"[{cloud}/{region}] nixos-infect Phase 1 complete. Waiting for reboot...")
+    timing["phase1_done"] = time.time() - t0
 
     # Wait for SSH to drop (reboot) and come back
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=600)
-
+    timing["reboot_done"] = time.time() - t0
     info(f"[{cloud}/{region}] System rebooted. Running Phase 2: nixos-rebuild...")
 
     # Phase 2: Apply full flake config via nixos-rebuild.
@@ -214,8 +233,12 @@ def _deploy_nixos_infect(
             f"stderr: {result.stderr[-2000:]}"
         )
 
-    info(f"[{cloud}/{region}] nixos-infect Phase 2 complete.")
-    return output + "\n--- Phase 2 ---\n" + result.stdout
+    timing["phase2_done"] = time.time() - t0
+    info(f"[{cloud}/{region}] nixos-infect Phase 2 complete. ({timing['phase2_done']:.0f}s total)")
+    return {
+        "stdout": output + "\n--- Phase 2 ---\n" + result.stdout,
+        "timing": timing,
+    }
 
 
 def _wait_for_ssh(
