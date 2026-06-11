@@ -36,6 +36,27 @@ All decrypted at runtime by agenix. Never touch disk in plaintext.
 
 ## Quick Start
 
+## Known Issues
+
+### DO: nixos-anywhere installs but system never boots
+DO droplets go dark permanently after nixos-anywhere runs. GRUB installs
+successfully (BIOS mode) but the system never responds on the network
+after reboot. This affects ALL attempts regardless of:
+- disk layout (GPT/BIOS vs GPT+UEFI)
+- network config (cloud-init vs pure DHCP)
+- GRUB device setting (auto vs explicit)
+
+Hypothesis: DO's KVM hypervisor has an incompatibility with the kexec
+approach used by nixos-anywhere (boot kernel replacement). Possible fixes:
+1. Try nixos-infect instead of nixos-anywhere
+2. Use DO's rescue mode + manual NixOS install
+3. Avoid DO entirely for nixos-anywhere nodes
+
+### Hetzner: tailscale preauth key may time out
+`tailscale up` has a 30s timeout. If headscale server is slow to respond
+or unreachable, the preauth key round-trip can fail. SSH in and reconnect
+manually if needed.
+
 ```bash
 # 1. Provision cloud resources
 cd ~/repos/2143-59s/terraform
