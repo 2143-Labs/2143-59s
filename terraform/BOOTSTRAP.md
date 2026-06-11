@@ -1,7 +1,7 @@
 # Multi-Cloud k3s — Bootstrap Guide
 
 Three-cloud k3s HA: DigitalOcean NYC + Hetzner Ashburn + Hetzner Hillsboro.
-Provisioning by OpenTofu, OS by NixOS (nixos-anywhere), apps by ArgoCD.
+Provisioning by OpenTofu, OS by NixOS, apps by ArgoCD.
 
 ## Repo Layout
 
@@ -26,54 +26,70 @@ Access:   agenix s3-credentials.age → AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KE
 
 ```
 dotfiles/nixos/cluster/secrets/
-  s3-credentials.age      — DO Spaces keys (for tofu state)
-  do-pat.age              — DO API token
+  s3-credentials.age       — DO Spaces keys (for tofu state)
+  do-pat.age               — DO API token
   hetzner/hcloud-token.age — Hetzner Cloud API token
-  cloud-ssh-key.age       — k3s-cloud SSH private key (also on DO account, id 56925510)
+  cloud-ssh-key.age        — k3s-cloud SSH private key (also on DO account, id 56925510)
 ```
 
 All decrypted at runtime by agenix. Never touch disk in plaintext.
 
+## Deployment Methods
+
+Two methods exist because DigitalOcean and Hetzner handle kernel replacement differently.
+
+### Hetzner: nixos-anywhere (works)
+SSH → kexec into NixOS installer → disko partition → nixos-install → reboot.
+Hetzner's KVM handles the kexec kernel transition reliably.
+
+### DigitalOcean: nixos-infect (required — kexec fails on DO)
+SSH → fix MaxStartups → install bzip2 → curl nixos-infect → in-place install → reboot.
+
+DO's KVM does NOT handle kexec properly. After nixos-anywhere's kexec+disko+install,
+the droplet never comes back after reboot (confirmed across 5 attempts, 4 different
+disk/GRUB/networking configs). nixos-infect avoids kexec entirely: it runs on the
+live Ubuntu, downloads NixOS, installs it to disk, and does a normal hardware reboot.
+
+Two phases:
+  1. nixos-infect installs minimal base NixOS (auto-generates config for DO)
+  2. nixos-rebuild switch --flake applies our full flake config (k3s, tailscale, etc.)
+
+Gotchas:
+  - Ubuntu 24.04 doesn't ship bzcat. Install bzip2 first (handled in deploy.py).
+  - The cluster flake is in nixos/cluster/ subdirectory — use ?dir=nixos/cluster in URL.
+  - nixos-rebuild requires the full attribute path with ?dir= parameter.
+
+### MaxStartups (both clouds)
+DO's ConfigDrive cloud-init skips bootcmd, write_files, and merges its own
+vendor-data over user-data runcmd. Can't rely on cloud-init for SSH config.
+_fix_maxstartups() applies the fix over SSH as deploy step 1.
+
+Hetzner's cloud-init IS compliant. The fix runs unconditionally (harmless on Hetzner).
+
 ## Quick Start
-
-## Known Issues
-
-### DO: nixos-anywhere installs but system never boots
-DO droplets go dark permanently after nixos-anywhere runs. GRUB installs
-successfully (BIOS mode) but the system never responds on the network
-after reboot. This affects ALL attempts regardless of:
-- disk layout (GPT/BIOS vs GPT+UEFI)
-- network config (cloud-init vs pure DHCP)
-- GRUB device setting (auto vs explicit)
-
-Hypothesis: DO's KVM hypervisor has an incompatibility with the kexec
-approach used by nixos-anywhere (boot kernel replacement). Possible fixes:
-1. Try nixos-infect instead of nixos-anywhere
-2. Use DO's rescue mode + manual NixOS install
-3. Avoid DO entirely for nixos-anywhere nodes
-
-### Hetzner: tailscale preauth key may time out
-`tailscale up` has a 30s timeout. If headscale server is slow to respond
-or unreachable, the preauth key round-trip can fail. SSH in and reconnect
-manually if needed.
 
 ```bash
 # 1. Provision cloud resources
 cd ~/repos/2143-59s/terraform
 ./tofu-wrap plan      # preview
-./tofu-wrap apply     # create droplets/servers (7 resources)
+./tofu-wrap apply     # create droplets/servers (10 resources)
 
 # 2. Deploy NixOS + k3s to all nodes
-#    Each node: ~10-15 min
-source .venv/bin/activate
+#    DO uses nixos-infect, Hetzner uses nixos-anywhere (auto-dispatched by deploy.py)
 python3 deploy_all.py --workers 1
 
 # Or manually per-node:
-nixos-anywhere --flake ~/repos/dotfiles/nixos/cluster#<hostname> \
+# Hetzner:
+nixos-anywhere --flake ~/repos/dotfiles/nixos/cluster#hetzner-ashburn-k3s \
   -i <decrypted-ssh-key> root@<server-ip>
+# DO:
+python3 -c "
+from deploy import deploy_nixos
+deploy_nixos(host_ip='<ip>', hostname='do-nyc-k3s', cloud='digitalocean', region='nyc1')
+"
 
 # 3. Post-deploy (age key, agenix, tailscale, k3s verify)
-#    Managed by post_deploy.py, or manual steps in the deploy script.
+#    Managed by post_deploy.py after deploy_nixos returns.
 ```
 
 ## Cluster Inventory
@@ -84,7 +100,7 @@ nixos-anywhere --flake ~/repos/dotfiles/nixos/cluster#<hostname> \
 | hetzner-ashburn-k3s | Hetzner | ashburn | cpx21 | us-ashburn |
 | hetzner-hillsboro-k3s | Hetzner | hillsboro | cpx31 | us-hillsboro |
 
-NixOS flake hosts:
+NixOS flake hosts (in `dotfiles/nixos/cluster/flake.nix`):
 - `do-nyc-k3s` / `do-nyc-k3s-agent`
 - `hetzner-ashburn-k3s` / `hetzner-ashburn-k3s-agent`
 - `hetzner-hillsboro-k3s` / `hetzner-hillsboro-k3s-agent`
@@ -101,13 +117,14 @@ chmod 600 /tmp/k3s-cloud.pem
 ssh -i /tmp/k3s-cloud.pem root@<fip>
 ```
 
-Key fingerprint: `MD5:b8:85:11:e3:73:92:5a:44:1c:62:4b:85:9a:30:2a:28`
-
 ## NixOS Notes
 
-- DO nodes need `extraModules = [ ./modules/digitalocean.nix ]` for cloud-init datasource
-- DO disk device is `/dev/vda` (not `/dev/sda`)
-- Cloud-init bootcmd sets `MaxStartups 100:100:200` on all nodes — without it, nixos-anywhere's concurrent SSH exhausts the default Ubuntu limit
+- DO nodes: `extraModules = [ ./modules/digitalocean.nix ]` (pure DHCP — no cloud-init module)
+- DO disk device: `/dev/vda` (Hetzner: `/dev/sda`)
+- DO nodes: `useEFI = false` (BIOS-only GRUB)
+- The cluster flake is at `dotfiles/nixos/cluster/flake.nix`, NOT the root `dotfiles/flake.nix`
+- All filesystem layout via `modules/disko.nix`
+- kexec/kernel modules via `qemu-guest.nix` import in disko module
 
 ## Teardown
 

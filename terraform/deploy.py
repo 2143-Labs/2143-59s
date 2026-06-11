@@ -1,10 +1,31 @@
-"""NixOS deployment integration.
+"""NixOS deployment integration — two methods for two cloud profiles.
 
-Supports two methods:
-- nixos-anywhere: SSH → kexec → install → reboot (Hetzner)
-- nixos-infect: SSH → in-place install via curl/bash script (DigitalOcean)
+Hetzner (nixos-anywhere):
+  SSH → kexec into NixOS installer → disko partition → nixos-install → reboot.
+  Works reliably because Hetzner's KVM handles the kexec kernel transition.
+  kexec avoids the slow cloud-image download and boots a tiny installer kernel.
 
-nixos-infect avoids the kexec boot failure seen on DO droplets.
+DigitalOcean (nixos-infect):
+  SSH → install bzip2 → curl nixos-infect bash script → in-place replace → reboot.
+  DO's KVM does NOT handle kexec properly — the kexec'd kernel boots but the
+  installed NixOS never comes back after reboot (5 attempts across 5 recreations).
+  nixos-infect avoids kexec entirely: it runs on the live Ubuntu, downloads NixOS,
+  installs it to disk, and does a normal hardware reboot. DO handles this fine.
+
+  The two phases:
+    1. nixos-infect installs minimal base NixOS (auto-generates config for DO)
+    2. nixos-rebuild switch --flake applies our full flake config (k3s, tailscale, etc.)
+
+  Gotcha: Ubuntu 24.04 doesn't ship bzcat. Need `apt-get install -y bzip2` first.
+  Gotcha: The flake lives in nixos/cluster/ subdirectory — use ?dir=nixos/cluster in URL.
+
+MaxStartups (both):
+  DO's ConfigDrive cloud-init skips bootcmd, write_files, and merges its own
+  vendor-data over user-data runcmd. Can't rely on cloud-init for SSH config.
+  _fix_maxstartups applies the fix over SSH as deploy step 1.
+
+  Hetzner's cloud-init IS compliant. But _fix_maxstartups runs unconditionally
+  for both clouds (harmless on Hetzner).
 """
 
 
@@ -139,6 +160,14 @@ def _deploy_nixos_infect(
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
     _fix_maxstartups(host_ip, ssh_private_key_path)
 
+    # Ubuntu 24.04 doesn't ship bzcat, but nixos-infect needs it.
+    info(f"[{cloud}/{region}] Installing bzip2 (prerequisite for nixos-infect)...")
+    bzip_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
+        f"root@{host_ip}",
+        "apt-get update -qq && apt-get install -y -qq bzip2 && echo 'bzip2 OK'",
+    ]
+    subprocess.run(bzip_cmd, capture_output=True, text=True, timeout=60)
+
     info(f"[{cloud}/{region}] Running nixos-infect (Phase 1)...")
     infect_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
         f"root@{host_ip}",
@@ -163,8 +192,11 @@ def _deploy_nixos_infect(
 
     info(f"[{cloud}/{region}] System rebooted. Running Phase 2: nixos-rebuild...")
 
-    # Phase 2: Apply full flake config
-    flake_ref = f"github:John2143/dotfiles#{hostname}"
+    # Phase 2: Apply full flake config via nixos-rebuild.
+    # The cluster flake is in nixos/cluster/ subdirectory. The root flake has
+    # different machines (arch, closet, nas, etc.) and no cloud machines.
+    # Must use ?dir=nixos/cluster to point at the right flake.
+    flake_ref = f"github:John2143/dotfiles?dir=nixos/cluster#{hostname}"
     rebuild_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
         f"root@{host_ip}",
         f"nixos-rebuild switch --flake '{flake_ref}' 2>&1",
