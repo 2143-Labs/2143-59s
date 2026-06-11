@@ -1,8 +1,12 @@
-"""nixos-anywhere deployment integration.
+"""NixOS deployment integration.
 
-After OpenTofu creates cloud resources (VM + floating IP), this module
-runs nixos-anywhere to install NixOS + k3s on the new node.
+Supports two methods:
+- nixos-anywhere: SSH → kexec → install → reboot (Hetzner)
+- nixos-infect: SSH → in-place install via curl/bash script (DigitalOcean)
+
+nixos-infect avoids the kexec boot failure seen on DO droplets.
 """
+
 
 import subprocess
 import os
@@ -23,11 +27,39 @@ def deploy_nixos(
     ssh_private_key_path: Optional[str] = None,
     timeout: int = 600,
 ) -> str:
+    """Deploy NixOS to a cloud VM. Dispatches to nixos-anywhere or nixos-infect based on cloud."""
+    if cloud == "digitalocean":
+        return _deploy_nixos_infect(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
+    return _deploy_nixos_anywhere(host_ip, hostname, cloud, region, ssh_private_key_path, timeout)
+
+
+def _build_ssh_base_cmd(ssh_key_path: Optional[str] = None) -> list:
+    """Build common SSH options with ControlMaster multiplexing."""
+    cmd = [
+        "ssh", "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ConnectTimeout=10",
+        "-o", "ControlMaster=auto",
+        "-o", "ControlPath=/tmp/ssh-%r@%h:%p",
+        "-o", "ControlPersist=300",
+    ]
+    if ssh_key_path:
+        cmd.extend(["-i", ssh_key_path])
+    return cmd
+
+
+def _deploy_nixos_anywhere(
+    host_ip: str,
+    hostname: str,
+    cloud: str,
+    region: str,
+    ssh_private_key_path: Optional[str] = None,
+    timeout: int = 600,
+) -> str:
     """Run nixos-anywhere to deploy NixOS to a cloud VM.
 
     Args:
         host_ip: Public IP of the VM (primary, not floating).
-        hostname: NixOS configuration name (e.g., "hetzner-ashburn-k3s").
+        hostname: NixOS configuration name.
         cloud: Cloud provider name (for logging).
         region: Region name (for logging).
         ssh_private_key_path: Path to private key for SSH. If None, uses default.
@@ -36,13 +68,13 @@ def deploy_nixos(
     Returns:
         stdout from nixos-anywhere.
     """
+
     info(f"[{cloud}/{region}] Deploying NixOS ({hostname}) to {host_ip} via nixos-anywhere...")
 
     # Wait for SSH to become available
     info(f"[{cloud}/{region}] Waiting for SSH on {host_ip}...")
     _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
     _fix_maxstartups(host_ip, ssh_private_key_path)
-
 
     # Build the flake reference
     flake_ref = f"{FLAKE_PATH}#{hostname}"
@@ -76,6 +108,82 @@ def deploy_nixos(
 
     info(f"[{cloud}/{region}] nixos-anywhere completed successfully.")
     return result.stdout
+
+def _deploy_nixos_infect(
+    host_ip: str,
+    hostname: str,
+    cloud: str,
+    region: str,
+    ssh_private_key_path: Optional[str] = None,
+    timeout: int = 900,
+) -> str:
+    """Deploy NixOS via nixos-infect (in-place install, no kexec).
+
+    Phase 1: Run nixos-infect from curl to replace Ubuntu with base NixOS.
+    Phase 2: After reboot, apply full flake config via nixos-rebuild.
+
+    Args:
+        host_ip: Public IP of the VM.
+        hostname: NixOS configuration name.
+        cloud: Cloud provider name (for logging).
+        region: Region name (for logging).
+        ssh_private_key_path: Path to private key for SSH.
+        timeout: Max seconds for the full operation.
+
+    Returns:
+        Combined stdout from both phases.
+    """
+    info(f"[{cloud}/{region}] Deploying NixOS ({hostname}) to {host_ip} via nixos-infect...")
+
+    # Phase 1: Wait for SSH, fix MaxStartups, run nixos-infect
+    _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=300)
+    _fix_maxstartups(host_ip, ssh_private_key_path)
+
+    info(f"[{cloud}/{region}] Running nixos-infect (Phase 1)...")
+    infect_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
+        f"root@{host_ip}",
+        "nohup bash -c '"
+        "curl -s https://raw.githubusercontent.com/elitak/nixos-infect/master/nixos-infect "
+        "| PROVIDER=digitalocean NIX_ALLOW_UNFREE=1 NIX_CHANNEL=nixos-25.05 "
+        "bash > /tmp/nixos-infect.log 2>&1' "
+        "& echo PID=$! && wait $! && echo 'INFECT_DONE'"
+    ]
+    try:
+        result = subprocess.run(infect_cmd, capture_output=True, text=True, timeout=timeout)
+        output = result.stdout
+    except subprocess.TimeoutExpired as e:
+        output = e.stdout or ""
+        warn(f"[{cloud}/{region}] nixos-infect SSH timed out ({timeout}s), "
+             "system may have rebooted — continuing...")
+
+    info(f"[{cloud}/{region}] nixos-infect Phase 1 complete. Waiting for reboot...")
+
+    # Wait for SSH to drop (reboot) and come back
+    _wait_for_ssh(host_ip, ssh_private_key_path, max_wait=600)
+
+    info(f"[{cloud}/{region}] System rebooted. Running Phase 2: nixos-rebuild...")
+
+    # Phase 2: Apply full flake config
+    flake_ref = f"github:John2143/dotfiles#{hostname}"
+    rebuild_cmd = _build_ssh_base_cmd(ssh_private_key_path) + [
+        f"root@{host_ip}",
+        f"nixos-rebuild switch --flake '{flake_ref}' 2>&1",
+    ]
+    result = subprocess.run(
+        rebuild_cmd,
+        capture_output=True, text=True,
+        timeout=timeout,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"nixos-rebuild failed for {hostname} ({host_ip}):\n"
+            f"stdout: {result.stdout[-2000:]}\n"
+            f"stderr: {result.stderr[-2000:]}"
+        )
+
+    info(f"[{cloud}/{region}] nixos-infect Phase 2 complete.")
+    return output + "\n--- Phase 2 ---\n" + result.stdout
 
 
 def _wait_for_ssh(
